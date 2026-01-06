@@ -1,0 +1,521 @@
+{
+  "name": "WIBOT - Admin Users",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "wibot/admin/users",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-get-users",
+      "name": "GET Users",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 200],
+      "webhookId": "admin-get-users"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "wibot/admin/users",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-create-user",
+      "name": "POST Create User",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 500],
+      "webhookId": "admin-create-user"
+    },
+    {
+      "parameters": {
+        "httpMethod": "PUT",
+        "path": "wibot/admin/users",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-update-user",
+      "name": "PUT Update User",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 800],
+      "webhookId": "admin-update-user"
+    },
+    {
+      "parameters": {
+        "httpMethod": "DELETE",
+        "path": "wibot/admin/users",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-delete-user",
+      "name": "DELETE User",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 1100],
+      "webhookId": "admin-delete-user"
+    },
+    {
+      "parameters": {
+        "jsCode": "const authHeader = $input.first().json.headers.authorization || '';\nconst token = authHeader.replace('Bearer ', '');\n\nif (!token) {\n  return [{ json: { valid: false, error: 'No token provided' } }];\n}\n\ntry {\n  const parts = token.split('.');\n  if (parts.length !== 3) {\n    return [{ json: { valid: false, error: 'Invalid token format' } }];\n  }\n  \n  const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());\n  \n  if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {\n    return [{ json: { valid: false, error: 'Token expired' } }];\n  }\n  \n  if (payload.role !== 'admin') {\n    return [{ json: { valid: false, error: 'Admin access required' } }];\n  }\n  \n  return [{ json: { valid: true, userId: payload.userId, role: payload.role } }];\n} catch (e) {\n  return [{ json: { valid: false, error: 'Invalid token' } }];\n}"
+      },
+      "id": "verify-jwt-get",
+      "name": "Verify JWT (GET)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const authHeader = $input.first().json.headers.authorization || '';\nconst token = authHeader.replace('Bearer ', '');\n\nif (!token) {\n  return [{ json: { valid: false, error: 'No token provided' } }];\n}\n\ntry {\n  const parts = token.split('.');\n  if (parts.length !== 3) {\n    return [{ json: { valid: false, error: 'Invalid token format' } }];\n  }\n  \n  const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());\n  \n  if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {\n    return [{ json: { valid: false, error: 'Token expired' } }];\n  }\n  \n  if (payload.role !== 'admin') {\n    return [{ json: { valid: false, error: 'Admin access required' } }];\n  }\n  \n  const body = $('POST Create User').first().json.body || {};\n  \n  return [{ json: { valid: true, userId: payload.userId, role: payload.role, body } }];\n} catch (e) {\n  return [{ json: { valid: false, error: 'Invalid token' } }];\n}"
+      },
+      "id": "verify-jwt-post",
+      "name": "Verify JWT (POST)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "const authHeader = $input.first().json.headers.authorization || '';\nconst token = authHeader.replace('Bearer ', '');\n\nif (!token) {\n  return [{ json: { valid: false, error: 'No token provided' } }];\n}\n\ntry {\n  const parts = token.split('.');\n  if (parts.length !== 3) {\n    return [{ json: { valid: false, error: 'Invalid token format' } }];\n  }\n  \n  const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());\n  \n  if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {\n    return [{ json: { valid: false, error: 'Token expired' } }];\n  }\n  \n  if (payload.role !== 'admin') {\n    return [{ json: { valid: false, error: 'Admin access required' } }];\n  }\n  \n  const body = $('PUT Update User').first().json.body || {};\n  \n  return [{ json: { valid: true, userId: payload.userId, role: payload.role, body } }];\n} catch (e) {\n  return [{ json: { valid: false, error: 'Invalid token' } }];\n}"
+      },
+      "id": "verify-jwt-put",
+      "name": "Verify JWT (PUT)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 800]
+    },
+    {
+      "parameters": {
+        "jsCode": "const authHeader = $input.first().json.headers.authorization || '';\nconst token = authHeader.replace('Bearer ', '');\n\nif (!token) {\n  return [{ json: { valid: false, error: 'No token provided' } }];\n}\n\ntry {\n  const parts = token.split('.');\n  if (parts.length !== 3) {\n    return [{ json: { valid: false, error: 'Invalid token format' } }];\n  }\n  \n  const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());\n  \n  if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {\n    return [{ json: { valid: false, error: 'Token expired' } }];\n  }\n  \n  if (payload.role !== 'admin') {\n    return [{ json: { valid: false, error: 'Admin access required' } }];\n  }\n  \n  const body = $('DELETE User').first().json.body || {};\n  const query = $('DELETE User').first().json.query || {};\n  \n  return [{ json: { valid: true, userId: payload.userId, role: payload.role, body, query } }];\n} catch (e) {\n  return [{ json: { valid: false, error: 'Invalid token' } }];\n}"
+      },
+      "id": "verify-jwt-delete",
+      "name": "Verify JWT (DELETE)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 1100]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "check-valid", "leftValue": "={{ $json.valid }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-valid-get",
+      "name": "Valid? (GET)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [690, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "check-valid", "leftValue": "={{ $json.valid }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-valid-post",
+      "name": "Valid? (POST)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [690, 500]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "check-valid", "leftValue": "={{ $json.valid }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-valid-put",
+      "name": "Valid? (PUT)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [690, 800]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "check-valid", "leftValue": "={{ $json.valid }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-valid-delete",
+      "name": "Valid? (DELETE)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [690, 1100]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT u.user_id, u.username, u.email, u.role, u.is_active, u.created_at,\n       COALESCE(u.accreditation_level, 'N1') as accreditation_level,\n       COALESCE(t.used_tokens, 0) as used_tokens,\n       COALESCE(t.quota_tokens, 50000) as quota_tokens\nFROM users u\nLEFT JOIN user_token_usage t ON u.user_id = t.user_id AND t.month = DATE_TRUNC('month', CURRENT_DATE)\nORDER BY u.created_at DESC",
+        "options": {}
+      },
+      "id": "get-all-users",
+      "name": "Get All Users",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [910, 100],
+      "credentials": { "postgres": { "id": "1", "name": "WIBOT PostgreSQL" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const users = $input.all().map(item => item.json);\n\nreturn [{\n  json: {\n    success: true,\n    users: users\n  }\n}];"
+      },
+      "id": "format-users",
+      "name": "Format Users",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1130, 100]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "respond-get-success",
+      "name": "GET Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1350, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\n\nif (!body.username || !body.password) {\n  return [{ json: { error: true, message: 'Username and password required' } }];\n}\n\n// Valider le niveau d'accreditation\nconst validLevels = ['N0', 'N1', 'N2', 'N3', 'N4'];\nconst accreditationLevel = validLevels.includes(body.accreditation_level) ? body.accreditation_level : 'N1';\n\nreturn [{ json: { \n  error: false,\n  username: body.username,\n  password: body.password,\n  email: body.email || null,\n  role: body.role || 'user',\n  accreditation_level: accreditationLevel,\n  quota_tokens: body.quota_tokens || 50000\n} }];"
+      },
+      "id": "validate-create",
+      "name": "Validate Create",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [910, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "check-error", "leftValue": "={{ $json.error }}", "rightValue": false, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-create-valid",
+      "name": "Create Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1130, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO users (username, password_hash, email, role, accreditation_level)\nVALUES ('{{ $json.username }}', '{{ $json.password }}', {{ $json.email ? \"'\" + $json.email + \"'\" : 'NULL' }}, '{{ $json.role }}', '{{ $json.accreditation_level }}')\nRETURNING user_id, username, email, role, accreditation_level, created_at",
+        "options": {}
+      },
+      "id": "insert-user",
+      "name": "Insert User",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1350, 300],
+      "credentials": { "postgres": { "id": "1", "name": "WIBOT PostgreSQL" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO user_token_usage (user_id, month, used_tokens, quota_tokens)\nVALUES ({{ $json.user_id }}, DATE_TRUNC('month', CURRENT_DATE), 0, {{ $('Validate Create').first().json.quota_tokens }})\nON CONFLICT (user_id, month) DO UPDATE SET quota_tokens = {{ $('Validate Create').first().json.quota_tokens }}",
+        "options": {}
+      },
+      "id": "init-tokens",
+      "name": "Init Tokens",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1570, 300],
+      "credentials": { "postgres": { "id": "1", "name": "WIBOT PostgreSQL" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const user = $('Insert User').first().json;\nconst quota = $('Validate Create').first().json.quota_tokens;\n\nreturn [{\n  json: {\n    success: true,\n    user: {\n      ...user,\n      used_tokens: 0,\n      quota_tokens: quota\n    }\n  }\n}];"
+      },
+      "id": "format-created-user",
+      "name": "Format Created",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1790, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": { "responseCode": 201 }
+      },
+      "id": "respond-create-success",
+      "name": "POST Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2010, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\n\nif (!body.user_id) {\n  return [{ json: { error: true, message: 'user_id required' } }];\n}\n\n// Valider le niveau d'accreditation si fourni\nconst validLevels = ['N0', 'N1', 'N2', 'N3', 'N4'];\nconst accreditationLevel = body.accreditation_level && validLevels.includes(body.accreditation_level) ? body.accreditation_level : null;\n\nreturn [{ json: { \n  error: false,\n  user_id: body.user_id,\n  quota_tokens: body.quota_tokens,\n  add_tokens: body.add_tokens,\n  role: body.role,\n  is_active: body.is_active,\n  accreditation_level: accreditationLevel\n} }];"
+      },
+      "id": "validate-update",
+      "name": "Validate Update",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [910, 700]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "check-error", "leftValue": "={{ $json.error }}", "rightValue": false, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-update-valid",
+      "name": "Update Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1130, 700]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=DO $$\nDECLARE\n  v_user_id INTEGER := {{ $json.user_id }};\nBEGIN\n  -- Update user role/active/accreditation_level if provided\n  {{ $json.role ? \"UPDATE users SET role = '\" + $json.role + \"' WHERE user_id = \" + $json.user_id + \";\" : '' }}\n  {{ $json.is_active !== undefined && $json.is_active !== null ? \"UPDATE users SET is_active = \" + $json.is_active + \" WHERE user_id = \" + $json.user_id + \";\" : '' }}\n  {{ $json.accreditation_level ? \"UPDATE users SET accreditation_level = '\" + $json.accreditation_level + \"' WHERE user_id = \" + $json.user_id + \";\" : '' }}\n  \n  -- Ensure token record exists\n  INSERT INTO user_token_usage (user_id, month, used_tokens, quota_tokens)\n  VALUES (v_user_id, DATE_TRUNC('month', CURRENT_DATE), 0, 50000)\n  ON CONFLICT (user_id, month) DO NOTHING;\n  \n  -- Update quota if provided\n  {{ $json.quota_tokens ? \"UPDATE user_token_usage SET quota_tokens = \" + $json.quota_tokens + \" WHERE user_id = \" + $json.user_id + \" AND month = DATE_TRUNC('month', CURRENT_DATE);\" : '' }}\n  \n  -- Add tokens if provided\n  {{ $json.add_tokens ? \"UPDATE user_token_usage SET quota_tokens = quota_tokens + \" + $json.add_tokens + \" WHERE user_id = \" + $json.user_id + \" AND month = DATE_TRUNC('month', CURRENT_DATE);\" : '' }}\nEND $$;",
+        "options": {}
+      },
+      "id": "update-user",
+      "name": "Update User",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1350, 600],
+      "credentials": { "postgres": { "id": "1", "name": "WIBOT PostgreSQL" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT u.user_id, u.username, u.email, u.role, u.is_active, u.created_at,\n       COALESCE(u.accreditation_level, 'N1') as accreditation_level,\n       COALESCE(t.used_tokens, 0) as used_tokens,\n       COALESCE(t.quota_tokens, 50000) as quota_tokens\nFROM users u\nLEFT JOIN user_token_usage t ON u.user_id = t.user_id AND t.month = DATE_TRUNC('month', CURRENT_DATE)\nWHERE u.user_id = {{ $('Validate Update').first().json.user_id }}",
+        "options": {}
+      },
+      "id": "get-updated-user",
+      "name": "Get Updated User",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1570, 600],
+      "credentials": { "postgres": { "id": "1", "name": "WIBOT PostgreSQL" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    success: true,\n    user: $input.first().json\n  }\n}];"
+      },
+      "id": "format-updated-user",
+      "name": "Format Updated",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1790, 600]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "respond-update-success",
+      "name": "PUT Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2010, 600]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || {};\nconst query = $input.first().json.query || {};\nconst user_id = body.user_id || query.user_id;\n\nif (!user_id) {\n  return [{ json: { error: true, message: 'user_id required' } }];\n}\n\nreturn [{ json: { error: false, user_id: parseInt(user_id) } }];"
+      },
+      "id": "validate-delete",
+      "name": "Validate Delete",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [910, 1000]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "check-error", "leftValue": "={{ $json.error }}", "rightValue": false, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-delete-valid",
+      "name": "Delete Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1130, 1000]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=DELETE FROM users WHERE user_id = {{ $json.user_id }} RETURNING user_id, username",
+        "options": {}
+      },
+      "id": "delete-user",
+      "name": "Delete User",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1350, 900],
+      "credentials": { "postgres": { "id": "1", "name": "WIBOT PostgreSQL" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const deleted = $input.first().json;\nreturn [{\n  json: {\n    success: true,\n    deleted: deleted\n  }\n}];"
+      },
+      "id": "format-deleted",
+      "name": "Format Deleted",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1570, 900]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "respond-delete-success",
+      "name": "DELETE Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1790, 900]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"{{ $json.error || 'Unauthorized' }}\" }",
+        "options": { "responseCode": 401 }
+      },
+      "id": "respond-unauthorized-get",
+      "name": "Unauthorized (GET)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [910, 280]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"{{ $json.error || 'Unauthorized' }}\" }",
+        "options": { "responseCode": 401 }
+      },
+      "id": "respond-unauthorized-post",
+      "name": "Unauthorized (POST)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [910, 580]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"{{ $json.error || 'Unauthorized' }}\" }",
+        "options": { "responseCode": 401 }
+      },
+      "id": "respond-unauthorized-put",
+      "name": "Unauthorized (PUT)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [910, 880]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"{{ $json.error || 'Unauthorized' }}\" }",
+        "options": { "responseCode": 401 }
+      },
+      "id": "respond-unauthorized-delete",
+      "name": "Unauthorized (DELETE)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [910, 1180]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"{{ $json.message }}\" }",
+        "options": { "responseCode": 400 }
+      },
+      "id": "respond-create-error",
+      "name": "Create Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1350, 480]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"{{ $json.message }}\" }",
+        "options": { "responseCode": 400 }
+      },
+      "id": "respond-update-error",
+      "name": "Update Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1350, 780]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"{{ $json.message }}\" }",
+        "options": { "responseCode": 400 }
+      },
+      "id": "respond-delete-error",
+      "name": "Delete Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1350, 1080]
+    }
+  ],
+  "connections": {
+    "GET Users": { "main": [[{ "node": "Verify JWT (GET)", "type": "main", "index": 0 }]] },
+    "POST Create User": { "main": [[{ "node": "Verify JWT (POST)", "type": "main", "index": 0 }]] },
+    "PUT Update User": { "main": [[{ "node": "Verify JWT (PUT)", "type": "main", "index": 0 }]] },
+    "DELETE User": { "main": [[{ "node": "Verify JWT (DELETE)", "type": "main", "index": 0 }]] },
+    "Verify JWT (GET)": { "main": [[{ "node": "Valid? (GET)", "type": "main", "index": 0 }]] },
+    "Verify JWT (POST)": { "main": [[{ "node": "Valid? (POST)", "type": "main", "index": 0 }]] },
+    "Verify JWT (PUT)": { "main": [[{ "node": "Valid? (PUT)", "type": "main", "index": 0 }]] },
+    "Verify JWT (DELETE)": { "main": [[{ "node": "Valid? (DELETE)", "type": "main", "index": 0 }]] },
+    "Valid? (GET)": { "main": [[{ "node": "Get All Users", "type": "main", "index": 0 }], [{ "node": "Unauthorized (GET)", "type": "main", "index": 0 }]] },
+    "Valid? (POST)": { "main": [[{ "node": "Validate Create", "type": "main", "index": 0 }], [{ "node": "Unauthorized (POST)", "type": "main", "index": 0 }]] },
+    "Valid? (PUT)": { "main": [[{ "node": "Validate Update", "type": "main", "index": 0 }], [{ "node": "Unauthorized (PUT)", "type": "main", "index": 0 }]] },
+    "Valid? (DELETE)": { "main": [[{ "node": "Validate Delete", "type": "main", "index": 0 }], [{ "node": "Unauthorized (DELETE)", "type": "main", "index": 0 }]] },
+    "Get All Users": { "main": [[{ "node": "Format Users", "type": "main", "index": 0 }]] },
+    "Format Users": { "main": [[{ "node": "GET Success", "type": "main", "index": 0 }]] },
+    "Validate Create": { "main": [[{ "node": "Create Valid?", "type": "main", "index": 0 }]] },
+    "Create Valid?": { "main": [[{ "node": "Insert User", "type": "main", "index": 0 }], [{ "node": "Create Error", "type": "main", "index": 0 }]] },
+    "Insert User": { "main": [[{ "node": "Init Tokens", "type": "main", "index": 0 }]] },
+    "Init Tokens": { "main": [[{ "node": "Format Created", "type": "main", "index": 0 }]] },
+    "Format Created": { "main": [[{ "node": "POST Success", "type": "main", "index": 0 }]] },
+    "Validate Update": { "main": [[{ "node": "Update Valid?", "type": "main", "index": 0 }]] },
+    "Update Valid?": { "main": [[{ "node": "Update User", "type": "main", "index": 0 }], [{ "node": "Update Error", "type": "main", "index": 0 }]] },
+    "Update User": { "main": [[{ "node": "Get Updated User", "type": "main", "index": 0 }]] },
+    "Get Updated User": { "main": [[{ "node": "Format Updated", "type": "main", "index": 0 }]] },
+    "Format Updated": { "main": [[{ "node": "PUT Success", "type": "main", "index": 0 }]] },
+    "Validate Delete": { "main": [[{ "node": "Delete Valid?", "type": "main", "index": 0 }]] },
+    "Delete Valid?": { "main": [[{ "node": "Delete User", "type": "main", "index": 0 }], [{ "node": "Delete Error", "type": "main", "index": 0 }]] },
+    "Delete User": { "main": [[{ "node": "Format Deleted", "type": "main", "index": 0 }]] },
+    "Format Deleted": { "main": [[{ "node": "DELETE Success", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": [{ "name": "WIBOT" }],
+  "triggerCount": 4,
+  "pinData": {}
+}

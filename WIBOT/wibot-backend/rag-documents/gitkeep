@@ -1,0 +1,15 @@
+# Ce dossier contient les documents a ingerer dans le RAG
+# Formats supportes: .md, .txt, .pdf, .docx, .xlsx, .csv, .json, .html
+
+# Structure recommandee:
+# rag-documents/
+# ├── procedures/     <- Procedures de resolution
+# ├── clients/        <- Fiches clients
+# ├── tickets/        <- Historique tickets
+# ├── documentation/  <- Documentation technique
+# └── faq/            <- Questions frequentes
+
+# Pour ingerer les documents:
+# 1. Via n8n: Executer le workflow "RAG Ingestion v2 - Multi-Format"
+# 2. Via API: POST /webhook/wibot/rag/ingest
+#    Body: {"mode": "full", "clear": true}

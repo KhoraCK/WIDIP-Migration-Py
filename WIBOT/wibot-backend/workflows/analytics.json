@@ -1,0 +1,322 @@
+{
+  "name": "WIBOT - Analytics",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "wibot/analytics",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-analytics",
+      "name": "Webhook Analytics",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "wibot-analytics"
+    },
+    {
+      "parameters": {
+        "jsCode": "const authHeader = $input.first().json.headers.authorization;\nconst query = $input.first().json.query || {};\n\nif (!authHeader || !authHeader.startsWith('Bearer ')) {\n  return [{ json: { valid: false, error: 'No token provided' } }];\n}\n\nconst token = authHeader.substring(7);\nconst parts = token.split('.');\n\nif (parts.length !== 3) {\n  return [{ json: { valid: false, error: 'Invalid token format' } }];\n}\n\ntry {\n  const payload = parts[1];\n  const decoded = JSON.parse(Buffer.from(payload, 'base64').toString());\n  \n  if (decoded.exp && decoded.exp < Math.floor(Date.now() / 1000)) {\n    return [{ json: { valid: false, error: 'Token expired' } }];\n  }\n  \n  // Verifier que l'utilisateur est admin\n  if (decoded.role !== 'admin') {\n    return [{ json: { valid: false, error: 'Admin access required' } }];\n  }\n  \n  // Periode: 24h, 7d, 30d (defaut: 7d)\n  const period = query.period || '7d';\n  let days = 7;\n  if (period === '24h') days = 1;\n  else if (period === '30d') days = 30;\n  \n  return [{ json: { valid: true, userId: decoded.userId, role: decoded.role, days: days, period: period } }];\n} catch (err) {\n  return [{ json: { valid: false, error: 'Invalid token' } }];\n}"
+      },
+      "id": "verify-jwt-admin",
+      "name": "Verify JWT (Admin)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-jwt-valid",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-jwt-valid",
+      "name": "JWT Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"error\": \"{{ $json.error }}\"\n}",
+        "options": {
+          "responseCode": 401,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-unauthorized",
+      "name": "Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [910, 450]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Stats tokens globaux\nSELECT \n  COALESCE(SUM(used_tokens), 0) as total_tokens,\n  COALESCE(SUM(quota_tokens), 0) as total_quota\nFROM user_token_usage\nWHERE month = DATE_TRUNC('month', CURRENT_DATE);",
+        "options": {}
+      },
+      "id": "query-tokens",
+      "name": "Query Tokens",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [910, 200],
+      "credentials": {
+        "postgres": {
+          "id": "OLIR53Szrqirze2J",
+          "name": "WIBOT PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Messages par jour (periode dynamique)\nSELECT \n  DATE(created_at) as date,\n  COUNT(*) as count,\n  SUM(tokens) as tokens\nFROM messages\nWHERE created_at >= NOW() - INTERVAL '{{ $('Verify JWT (Admin)').first().json.days }} days'\nGROUP BY DATE(created_at)\nORDER BY date ASC;",
+        "options": {}
+      },
+      "id": "query-messages-by-day",
+      "name": "Query Messages By Day",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1130, 200],
+      "credentials": {
+        "postgres": {
+          "id": "OLIR53Szrqirze2J",
+          "name": "WIBOT PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Stats par mode\nSELECT \n  COALESCE(mode, 'flash') as mode,\n  COUNT(*) as count\nFROM messages\nWHERE created_at >= NOW() - INTERVAL '{{ $('Verify JWT (Admin)').first().json.days }} days'\n  AND role = 'user'\nGROUP BY mode;",
+        "options": {}
+      },
+      "id": "query-modes",
+      "name": "Query Modes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1350, 200],
+      "credentials": {
+        "postgres": {
+          "id": "OLIR53Szrqirze2J",
+          "name": "WIBOT PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Stats conversations et utilisateurs\nSELECT \n  (SELECT COUNT(*) FROM conversations) as total_conversations,\n  (SELECT COUNT(*) FROM conversations WHERE updated_at >= NOW() - INTERVAL '{{ $('Verify JWT (Admin)').first().json.days }} days') as active_conversations,\n  (SELECT COUNT(*) FROM users WHERE is_active = true) as total_users,\n  (SELECT COUNT(*) FROM messages WHERE role = 'user') as total_messages,\n  (SELECT COUNT(*) FROM messages WHERE role = 'user' AND created_at >= NOW() - INTERVAL '1 day') as messages_today;",
+        "options": {}
+      },
+      "id": "query-global",
+      "name": "Query Global Stats",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1570, 200],
+      "credentials": {
+        "postgres": {
+          "id": "OLIR53Szrqirze2J",
+          "name": "WIBOT PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Stats fichiers et RAG\nSELECT \n  COALESCE(SUM(files_count), 0) as total_files,\n  COUNT(CASE WHEN rag_used = true THEN 1 END) as rag_queries,\n  COUNT(CASE WHEN files_count > 0 THEN 1 END) as messages_with_files\nFROM messages\nWHERE created_at >= NOW() - INTERVAL '{{ $('Verify JWT (Admin)').first().json.days }} days';",
+        "options": {}
+      },
+      "id": "query-files-rag",
+      "name": "Query Files & RAG",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1790, 200],
+      "credentials": {
+        "postgres": {
+          "id": "OLIR53Szrqirze2J",
+          "name": "WIBOT PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Aggreger toutes les stats\nconst tokensData = $('Query Tokens').first().json;\nconst messagesByDay = $('Query Messages By Day').all().map(item => item.json);\nconst modesData = $('Query Modes').all().map(item => item.json);\nconst globalData = $('Query Global Stats').first().json;\nconst filesRagData = $('Query Files & RAG').first().json;\nconst period = $('Verify JWT (Admin)').first().json.period;\n\n// Formater modes en objet\nconst modes = {};\nmodesData.forEach(m => {\n  modes[m.mode || 'flash'] = parseInt(m.count) || 0;\n});\n\n// S'assurer que tous les modes existent\nif (!modes.flash) modes.flash = 0;\nif (!modes.code) modes.code = 0;\nif (!modes.redaction) modes.redaction = 0;\n\nreturn [{\n  json: {\n    success: true,\n    period: period,\n    stats: {\n      tokens: {\n        used: parseInt(tokensData.total_tokens) || 0,\n        quota: parseInt(tokensData.total_quota) || 50000,\n        percentage: Math.round((parseInt(tokensData.total_tokens) || 0) / (parseInt(tokensData.total_quota) || 50000) * 100)\n      },\n      messages: {\n        total: parseInt(globalData.total_messages) || 0,\n        today: parseInt(globalData.messages_today) || 0,\n        byDay: messagesByDay.map(d => ({\n          date: d.date,\n          count: parseInt(d.count) || 0,\n          tokens: parseInt(d.tokens) || 0\n        }))\n      },\n      modes: modes,\n      conversations: {\n        total: parseInt(globalData.total_conversations) || 0,\n        active: parseInt(globalData.active_conversations) || 0\n      },\n      users: {\n        total: parseInt(globalData.total_users) || 0\n      },\n      files: {\n        total: parseInt(filesRagData.total_files) || 0,\n        messagesWithFiles: parseInt(filesRagData.messages_with_files) || 0\n      },\n      rag: {\n        queries: parseInt(filesRagData.rag_queries) || 0\n      }\n    }\n  }\n}];"
+      },
+      "id": "format-stats",
+      "name": "Format Stats",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2010, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-success",
+      "name": "Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2230, 200]
+    }
+  ],
+  "connections": {
+    "Webhook Analytics": {
+      "main": [
+        [
+          {
+            "node": "Verify JWT (Admin)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify JWT (Admin)": {
+      "main": [
+        [
+          {
+            "node": "JWT Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "JWT Valid?": {
+      "main": [
+        [
+          {
+            "node": "Query Tokens",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Unauthorized",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Tokens": {
+      "main": [
+        [
+          {
+            "node": "Query Messages By Day",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Messages By Day": {
+      "main": [
+        [
+          {
+            "node": "Query Modes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Modes": {
+      "main": [
+        [
+          {
+            "node": "Query Global Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Global Stats": {
+      "main": [
+        [
+          {
+            "node": "Query Files & RAG",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Files & RAG": {
+      "main": [
+        [
+          {
+            "node": "Format Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Stats": {
+      "main": [
+        [
+          {
+            "node": "Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "WIBOT"
+    }
+  ],
+  "triggerCount": 1,
+  "pinData": {},
+  "active": true
+}

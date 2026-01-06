@@ -1,0 +1,205 @@
+{
+  "name": "WIBOT - Rename Conversation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "PATCH",
+        "path": "wibot/conversation/rename",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-rename",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "wibot-rename-conversation"
+    },
+    {
+      "parameters": {
+        "jsCode": "const authHeader = $input.first().json.headers.authorization;\nconst body = $input.first().json.body;\nconst conversationId = body.conversationId;\nconst newTitle = body.title;\n\nif (!authHeader || !authHeader.startsWith('Bearer ')) {\n  return [{ json: { valid: false, error: 'No token provided' } }];\n}\n\nif (!conversationId) {\n  return [{ json: { valid: false, error: 'conversationId is required' } }];\n}\n\nif (!newTitle || newTitle.trim().length === 0) {\n  return [{ json: { valid: false, error: 'title is required' } }];\n}\n\nconst token = authHeader.substring(7);\nconst parts = token.split('.');\n\nif (parts.length !== 3) {\n  return [{ json: { valid: false, error: 'Invalid token format' } }];\n}\n\ntry {\n  const payload = parts[1];\n  const decoded = JSON.parse(Buffer.from(payload, 'base64').toString());\n  \n  if (decoded.exp && decoded.exp < Math.floor(Date.now() / 1000)) {\n    return [{ json: { valid: false, error: 'Token expired' } }];\n  }\n  \n  return [{ json: { valid: true, userId: decoded.userId, conversationId, newTitle: newTitle.trim() } }];\n} catch (err) {\n  return [{ json: { valid: false, error: 'Invalid token' } }];\n}"
+      },
+      "id": "verify-jwt",
+      "name": "Verify JWT",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-jwt-valid",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-jwt-valid",
+      "name": "JWT Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"error\": \"{{ $json.error }}\"\n}",
+        "options": {
+          "responseCode": 401,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-unauthorized",
+      "name": "Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [910, 450]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE conversations\nSET title = '{{ $json.newTitle }}', updated_at = NOW()\nWHERE conversation_id = '{{ $json.conversationId }}'::uuid\n  AND user_id = {{ $json.userId }}\nRETURNING conversation_id::text, title, TO_CHAR(updated_at, 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') as updated_at;",
+        "options": {}
+      },
+      "id": "rename-conversation",
+      "name": "Rename Conversation",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [910, 200],
+      "credentials": {
+        "postgres": {
+          "id": "yY2GzRzLXTG4anFZ",
+          "name": "WIBOT PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all();\n\nif (!rows || rows.length === 0 || !rows[0].json.conversation_id) {\n  return [{\n    json: {\n      success: false,\n      error: 'Conversation not found or access denied'\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    success: true,\n    conversation: {\n      conversation_id: rows[0].json.conversation_id,\n      title: rows[0].json.title,\n      updated_at: rows[0].json.updated_at\n    }\n  }\n}];"
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1130, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-success",
+      "name": "Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1350, 200]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Verify JWT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify JWT": {
+      "main": [
+        [
+          {
+            "node": "JWT Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "JWT Valid?": {
+      "main": [
+        [
+          {
+            "node": "Rename Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Unauthorized",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rename Conversation": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "WIBOT"
+    }
+  ],
+  "triggerCount": 1,
+  "pinData": {}
+}

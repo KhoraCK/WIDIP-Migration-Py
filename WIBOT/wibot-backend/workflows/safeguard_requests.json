@@ -1,0 +1,214 @@
+{
+  "name": "WIBOT - Safeguard Requests",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "wibot/safeguard/requests",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-get-requests",
+      "name": "GET Requests",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 200],
+      "webhookId": "safeguard-get-requests"
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "wibot/safeguard/request/:id",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-get-detail",
+      "name": "GET Request Detail",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 500],
+      "webhookId": "safeguard-get-detail"
+    },
+    {
+      "parameters": {
+        "jsCode": "const authHeader = $input.first().json.headers.authorization || '';\nconst token = authHeader.replace('Bearer ', '');\n\nif (!token) {\n  return [{ json: { valid: false, error: 'No token provided' } }];\n}\n\ntry {\n  const parts = token.split('.');\n  if (parts.length !== 3) {\n    return [{ json: { valid: false, error: 'Invalid token format' } }];\n  }\n  \n  const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());\n  \n  if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {\n    return [{ json: { valid: false, error: 'Token expired' } }];\n  }\n  \n  // Verifier niveau d'accreditation minimum N1\n  const level = payload.accreditationLevel || 'N1';\n  const levelNum = parseInt(level.replace('N', ''));\n  if (levelNum < 1) {\n    return [{ json: { valid: false, error: 'Accreditation level too low' } }];\n  }\n  \n  const query = $('GET Requests').first().json.query || {};\n  \n  return [{ json: { \n    valid: true, \n    userId: payload.userId, \n    role: payload.role,\n    accreditationLevel: level,\n    status: query.status || 'pending'\n  } }];\n} catch (e) {\n  return [{ json: { valid: false, error: 'Invalid token: ' + e.message } }];\n}"
+      },
+      "id": "verify-jwt-list",
+      "name": "Verify JWT (List)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const authHeader = $input.first().json.headers.authorization || '';\nconst token = authHeader.replace('Bearer ', '');\n\nif (!token) {\n  return [{ json: { valid: false, error: 'No token provided' } }];\n}\n\ntry {\n  const parts = token.split('.');\n  if (parts.length !== 3) {\n    return [{ json: { valid: false, error: 'Invalid token format' } }];\n  }\n  \n  const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());\n  \n  if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {\n    return [{ json: { valid: false, error: 'Token expired' } }];\n  }\n  \n  const level = payload.accreditationLevel || 'N1';\n  const levelNum = parseInt(level.replace('N', ''));\n  if (levelNum < 1) {\n    return [{ json: { valid: false, error: 'Accreditation level too low' } }];\n  }\n  \n  const params = $('GET Request Detail').first().json.params || {};\n  \n  return [{ json: { \n    valid: true, \n    userId: payload.userId, \n    role: payload.role,\n    accreditationLevel: level,\n    approvalId: params.id\n  } }];\n} catch (e) {\n  return [{ json: { valid: false, error: 'Invalid token: ' + e.message } }];\n}"
+      },
+      "id": "verify-jwt-detail",
+      "name": "Verify JWT (Detail)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 500]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "check-valid", "leftValue": "={{ $json.valid }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-valid-list",
+      "name": "Valid? (List)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [690, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "check-valid", "leftValue": "={{ $json.valid }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-valid-detail",
+      "name": "Valid? (Detail)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [690, 500]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.MCP_SERVER_URL || 'http://host.docker.internal:3001' }}/api/safeguard/pending",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "fetch-mcp-list",
+      "name": "Fetch MCP Pending",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [910, 100],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "mcp-auth",
+          "name": "MCP Server Auth"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.MCP_SERVER_URL || 'http://host.docker.internal:3001' }}/api/safeguard/{{ $('Verify JWT (Detail)').first().json.approvalId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "fetch-mcp-detail",
+      "name": "Fetch MCP Detail",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [910, 400],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "mcp-auth",
+          "name": "MCP Server Auth"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst userLevel = $('Verify JWT (List)').first().json.accreditationLevel;\nconst userLevelNum = parseInt(userLevel.replace('N', ''));\n\n// Si erreur de connexion au MCP, retourner liste vide\nif (response.error || !response.requests) {\n  return [{\n    json: {\n      success: true,\n      requests: [],\n      total: 0,\n      message: 'MCP Server non disponible - mode demonstration'\n    }\n  }];\n}\n\n// Filtrer les demandes selon le niveau d'accreditation de l'utilisateur\nconst requests = response.requests.map(req => {\n  // Convertir le niveau de securite L1/L2/L3 en nombre\n  const reqLevel = parseInt((req.security_level || 'L1').replace('L', ''));\n  \n  // Calculer le temps restant\n  const expiresAt = new Date(req.expires_at);\n  const now = new Date();\n  const timeRemaining = Math.max(0, Math.floor((expiresAt - now) / 1000));\n  \n  return {\n    ...req,\n    time_remaining_seconds: timeRemaining,\n    can_approve: userLevelNum >= reqLevel\n  };\n}).filter(req => req.time_remaining_seconds > 0); // Filtrer les expirees\n\nreturn [{\n  json: {\n    success: true,\n    requests: requests,\n    total: requests.length\n  }\n}];"
+      },
+      "id": "format-list",
+      "name": "Format List Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1130, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst userLevel = $('Verify JWT (Detail)').first().json.accreditationLevel;\nconst userLevelNum = parseInt(userLevel.replace('N', ''));\n\n// Si erreur\nif (response.error || !response.approval_id) {\n  return [{\n    json: {\n      success: false,\n      error: response.error || 'Demande non trouvee'\n    }\n  }];\n}\n\n// Calculer le temps restant\nconst expiresAt = new Date(response.expires_at);\nconst now = new Date();\nconst timeRemaining = Math.max(0, Math.floor((expiresAt - now) / 1000));\n\nconst reqLevel = parseInt((response.security_level || 'L1').replace('L', ''));\n\nreturn [{\n  json: {\n    success: true,\n    request: {\n      ...response,\n      time_remaining_seconds: timeRemaining,\n      can_approve: userLevelNum >= reqLevel\n    }\n  }\n}];"
+      },
+      "id": "format-detail",
+      "name": "Format Detail Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1130, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "respond-list-success",
+      "name": "List Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1350, 100]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "respond-detail-success",
+      "name": "Detail Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1350, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"{{ $json.error || 'Unauthorized' }}\" }",
+        "options": { "responseCode": 401 }
+      },
+      "id": "respond-unauthorized-list",
+      "name": "Unauthorized (List)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [910, 280]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"{{ $json.error || 'Unauthorized' }}\" }",
+        "options": { "responseCode": 401 }
+      },
+      "id": "respond-unauthorized-detail",
+      "name": "Unauthorized (Detail)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [910, 580]
+    }
+  ],
+  "connections": {
+    "GET Requests": { "main": [[{ "node": "Verify JWT (List)", "type": "main", "index": 0 }]] },
+    "GET Request Detail": { "main": [[{ "node": "Verify JWT (Detail)", "type": "main", "index": 0 }]] },
+    "Verify JWT (List)": { "main": [[{ "node": "Valid? (List)", "type": "main", "index": 0 }]] },
+    "Verify JWT (Detail)": { "main": [[{ "node": "Valid? (Detail)", "type": "main", "index": 0 }]] },
+    "Valid? (List)": { "main": [[{ "node": "Fetch MCP Pending", "type": "main", "index": 0 }], [{ "node": "Unauthorized (List)", "type": "main", "index": 0 }]] },
+    "Valid? (Detail)": { "main": [[{ "node": "Fetch MCP Detail", "type": "main", "index": 0 }], [{ "node": "Unauthorized (Detail)", "type": "main", "index": 0 }]] },
+    "Fetch MCP Pending": { "main": [[{ "node": "Format List Response", "type": "main", "index": 0 }]] },
+    "Fetch MCP Detail": { "main": [[{ "node": "Format Detail Response", "type": "main", "index": 0 }]] },
+    "Format List Response": { "main": [[{ "node": "List Success", "type": "main", "index": 0 }]] },
+    "Format Detail Response": { "main": [[{ "node": "Detail Success", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": [{ "name": "WIBOT" }, { "name": "Safeguard" }],
+  "triggerCount": 2,
+  "pinData": {}
+}

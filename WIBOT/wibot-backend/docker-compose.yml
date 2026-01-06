@@ -1,0 +1,107 @@
+services:
+  # ===========================================
+  # PostgreSQL + pgvector - Base de données
+  # ===========================================
+  postgres:
+    image: pgvector/pgvector:pg14
+    container_name: wibot-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-wibot}
+      POSTGRES_USER: ${POSTGRES_USER:-widip}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-widip_secure_password_2024}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-widip} -d ${POSTGRES_DB:-wibot}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - wibot-network
+
+  # ===========================================
+  # n8n - Backend API / Workflows
+  # ===========================================
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: wibot-n8n
+    restart: unless-stopped
+    environment:
+      # Base config
+      - N8N_HOST=${N8N_HOST:-localhost}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=${N8N_PROTOCOL:-http}
+      - WEBHOOK_URL=${WEBHOOK_URL:-http://localhost:5679}
+      # Security
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_USER:-admin}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD:-wibot_admin_2024}
+      # Database (n8n internal)
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=${POSTGRES_DB:-wibot}
+      - DB_POSTGRESDB_USER=${POSTGRES_USER:-widip}
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD:-widip_secure_password_2024}
+      # Timezone
+      - GENERIC_TIMEZONE=Europe/Paris
+      - TZ=Europe/Paris
+      # Execution
+      - EXECUTIONS_DATA_PRUNE=true
+      - EXECUTIONS_DATA_MAX_AGE=168
+      # Custom env for workflows
+      - JWT_SECRET=${JWT_SECRET:-wibot_jwt_secret_key_minimum_32_chars_2024}
+      - MISTRAL_API_KEY=${MISTRAL_API_KEY:-your_mistral_api_key}
+      # Autoriser les modules Node.js dans les nodes Code (pour scanner les fichiers)
+      - NODE_FUNCTION_ALLOW_BUILTIN=fs,path,crypto
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./workflows:/home/node/workflows:ro
+      # Dossier pour les documents RAG (PDF, Excel, Word, etc.)
+      - ${RAG_DOCUMENTS_PATH:-./rag-documents}:/home/node/.n8n-files/rag-documents:rw
+    ports:
+      - "5679:5678"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - wibot-network
+
+  # ===========================================
+  # Nginx - Reverse Proxy + Frontend
+  # ===========================================
+  nginx:
+    image: nginx:alpine
+    container_name: wibot-nginx
+    restart: unless-stopped
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./frontend:/usr/share/nginx/html:ro
+    ports:
+      - "8080:80"
+    depends_on:
+      - n8n
+    networks:
+      - wibot-network
+
+# ===========================================
+# Volumes persistants
+# ===========================================
+volumes:
+  postgres_data:
+    name: wibot-postgres-data
+  n8n_data:
+    name: wibot-n8n-data
+
+# ===========================================
+# Network
+# ===========================================
+networks:
+  wibot-network:
+    name: wibot-network
+    driver: bridge
+

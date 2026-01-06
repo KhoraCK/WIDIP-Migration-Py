@@ -1,0 +1,220 @@
+{
+  "name": "WIBOT - Safeguard Actions",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "wibot/safeguard/approve",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-approve",
+      "name": "POST Approve",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 200],
+      "webhookId": "safeguard-approve"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "wibot/safeguard/reject",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-reject",
+      "name": "POST Reject",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 600],
+      "webhookId": "safeguard-reject"
+    },
+    {
+      "parameters": {
+        "jsCode": "const authHeader = $input.first().json.headers.authorization || '';\nconst token = authHeader.replace('Bearer ', '');\nconst body = $('POST Approve').first().json.body || {};\n\nif (!token) {\n  return [{ json: { valid: false, error: 'No token provided' } }];\n}\n\nif (!body.approval_id) {\n  return [{ json: { valid: false, error: 'approval_id required' } }];\n}\n\ntry {\n  const parts = token.split('.');\n  if (parts.length !== 3) {\n    return [{ json: { valid: false, error: 'Invalid token format' } }];\n  }\n  \n  const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());\n  \n  if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {\n    return [{ json: { valid: false, error: 'Token expired' } }];\n  }\n  \n  const level = payload.accreditationLevel || 'N1';\n  const levelNum = parseInt(level.replace('N', ''));\n  \n  // Minimum N1 pour approuver\n  if (levelNum < 1) {\n    return [{ json: { valid: false, error: 'Accreditation level too low' } }];\n  }\n  \n  return [{ json: { \n    valid: true, \n    userId: payload.userId,\n    username: payload.username,\n    role: payload.role,\n    accreditationLevel: level,\n    levelNum: levelNum,\n    approvalId: body.approval_id,\n    comment: body.comment || ''\n  } }];\n} catch (e) {\n  return [{ json: { valid: false, error: 'Invalid token: ' + e.message } }];\n}"
+      },
+      "id": "verify-jwt-approve",
+      "name": "Verify JWT (Approve)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const authHeader = $input.first().json.headers.authorization || '';\nconst token = authHeader.replace('Bearer ', '');\nconst body = $('POST Reject').first().json.body || {};\n\nif (!token) {\n  return [{ json: { valid: false, error: 'No token provided' } }];\n}\n\nif (!body.approval_id) {\n  return [{ json: { valid: false, error: 'approval_id required' } }];\n}\n\ntry {\n  const parts = token.split('.');\n  if (parts.length !== 3) {\n    return [{ json: { valid: false, error: 'Invalid token format' } }];\n  }\n  \n  const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());\n  \n  if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {\n    return [{ json: { valid: false, error: 'Token expired' } }];\n  }\n  \n  const level = payload.accreditationLevel || 'N1';\n  const levelNum = parseInt(level.replace('N', ''));\n  \n  // Minimum N1 pour refuser\n  if (levelNum < 1) {\n    return [{ json: { valid: false, error: 'Accreditation level too low' } }];\n  }\n  \n  return [{ json: { \n    valid: true, \n    userId: payload.userId,\n    username: payload.username,\n    role: payload.role,\n    accreditationLevel: level,\n    levelNum: levelNum,\n    approvalId: body.approval_id,\n    comment: body.comment || ''\n  } }];\n} catch (e) {\n  return [{ json: { valid: false, error: 'Invalid token: ' + e.message } }];\n}"
+      },
+      "id": "verify-jwt-reject",
+      "name": "Verify JWT (Reject)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 600]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "check-valid", "leftValue": "={{ $json.valid }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-valid-approve",
+      "name": "Valid? (Approve)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [690, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "check-valid", "leftValue": "={{ $json.valid }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-valid-reject",
+      "name": "Valid? (Reject)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [690, 600]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.MCP_SERVER_URL || 'http://host.docker.internal:3001' }}/api/safeguard/{{ $json.approvalId }}/approve",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"approver\": \"{{ $json.username }}\",\n  \"approver_level\": \"{{ $json.accreditationLevel }}\",\n  \"comment\": \"{{ $json.comment }}\"\n}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "call-mcp-approve",
+      "name": "Call MCP Approve",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [910, 100],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "mcp-auth",
+          "name": "MCP Server Auth"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.MCP_SERVER_URL || 'http://host.docker.internal:3001' }}/api/safeguard/{{ $json.approvalId }}/reject",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"rejector\": \"{{ $json.username }}\",\n  \"rejector_level\": \"{{ $json.accreditationLevel }}\",\n  \"comment\": \"{{ $json.comment }}\"\n}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "call-mcp-reject",
+      "name": "Call MCP Reject",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [910, 500],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "mcp-auth",
+          "name": "MCP Server Auth"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst approvalId = $('Verify JWT (Approve)').first().json.approvalId;\n\n// Si erreur de connexion au MCP\nif (response.error) {\n  // Mode demo: simuler le succes\n  return [{\n    json: {\n      success: true,\n      approval_id: approvalId,\n      status: 'approved',\n      message: 'Demande approuvee (mode demonstration - MCP non connecte)'\n    }\n  }];\n}\n\n// Reponse reelle du MCP\nreturn [{\n  json: {\n    success: response.success !== false,\n    approval_id: approvalId,\n    status: response.status || 'approved',\n    message: response.message || 'Demande approuvee avec succes'\n  }\n}];"
+      },
+      "id": "format-approve-response",
+      "name": "Format Approve Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1130, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst approvalId = $('Verify JWT (Reject)').first().json.approvalId;\n\n// Si erreur de connexion au MCP\nif (response.error) {\n  // Mode demo: simuler le succes\n  return [{\n    json: {\n      success: true,\n      approval_id: approvalId,\n      status: 'rejected',\n      message: 'Demande refusee (mode demonstration - MCP non connecte)'\n    }\n  }];\n}\n\n// Reponse reelle du MCP\nreturn [{\n  json: {\n    success: response.success !== false,\n    approval_id: approvalId,\n    status: response.status || 'rejected',\n    message: response.message || 'Demande refusee'\n  }\n}];"
+      },
+      "id": "format-reject-response",
+      "name": "Format Reject Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1130, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "respond-approve-success",
+      "name": "Approve Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1350, 100]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "respond-reject-success",
+      "name": "Reject Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1350, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"{{ $json.error || 'Unauthorized' }}\" }",
+        "options": { "responseCode": 401 }
+      },
+      "id": "respond-unauthorized-approve",
+      "name": "Unauthorized (Approve)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [910, 280]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"{{ $json.error || 'Unauthorized' }}\" }",
+        "options": { "responseCode": 401 }
+      },
+      "id": "respond-unauthorized-reject",
+      "name": "Unauthorized (Reject)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [910, 680]
+    }
+  ],
+  "connections": {
+    "POST Approve": { "main": [[{ "node": "Verify JWT (Approve)", "type": "main", "index": 0 }]] },
+    "POST Reject": { "main": [[{ "node": "Verify JWT (Reject)", "type": "main", "index": 0 }]] },
+    "Verify JWT (Approve)": { "main": [[{ "node": "Valid? (Approve)", "type": "main", "index": 0 }]] },
+    "Verify JWT (Reject)": { "main": [[{ "node": "Valid? (Reject)", "type": "main", "index": 0 }]] },
+    "Valid? (Approve)": { "main": [[{ "node": "Call MCP Approve", "type": "main", "index": 0 }], [{ "node": "Unauthorized (Approve)", "type": "main", "index": 0 }]] },
+    "Valid? (Reject)": { "main": [[{ "node": "Call MCP Reject", "type": "main", "index": 0 }], [{ "node": "Unauthorized (Reject)", "type": "main", "index": 0 }]] },
+    "Call MCP Approve": { "main": [[{ "node": "Format Approve Response", "type": "main", "index": 0 }]] },
+    "Call MCP Reject": { "main": [[{ "node": "Format Reject Response", "type": "main", "index": 0 }]] },
+    "Format Approve Response": { "main": [[{ "node": "Approve Success", "type": "main", "index": 0 }]] },
+    "Format Reject Response": { "main": [[{ "node": "Reject Success", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": [{ "name": "WIBOT" }, { "name": "Safeguard" }],
+  "triggerCount": 2,
+  "pinData": {}
+}

@@ -1,0 +1,255 @@
+{
+  "name": "WIBOT - Delete Conversation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "DELETE",
+        "path": "wibot/conversation/delete",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-delete",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "wibot-delete-conversation"
+    },
+    {
+      "parameters": {
+        "jsCode": "const authHeader = $input.first().json.headers.authorization;\nconst body = $input.first().json.body;\nconst conversationId = body.conversationId;\n\nif (!authHeader || !authHeader.startsWith('Bearer ')) {\n  return [{ json: { valid: false, error: 'No token provided' } }];\n}\n\nif (!conversationId) {\n  return [{ json: { valid: false, error: 'conversationId is required' } }];\n}\n\nconst token = authHeader.substring(7);\nconst parts = token.split('.');\n\nif (parts.length !== 3) {\n  return [{ json: { valid: false, error: 'Invalid token format' } }];\n}\n\ntry {\n  const payload = parts[1];\n  const decoded = JSON.parse(Buffer.from(payload, 'base64').toString());\n  \n  if (decoded.exp && decoded.exp < Math.floor(Date.now() / 1000)) {\n    return [{ json: { valid: false, error: 'Token expired' } }];\n  }\n  \n  return [{ json: { valid: true, userId: decoded.userId, conversationId } }];\n} catch (err) {\n  return [{ json: { valid: false, error: 'Invalid token' } }];\n}"
+      },
+      "id": "verify-jwt",
+      "name": "Verify JWT",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-jwt-valid",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-jwt-valid",
+      "name": "JWT Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"error\": \"{{ $json.error }}\"\n}",
+        "options": {
+          "responseCode": 401,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-unauthorized",
+      "name": "Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [910, 450]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM n8n_vectors\nWHERE metadata->>'category' = 'temp'\n  AND metadata->>'conversation_id' = '{{ $json.conversationId }}';",
+        "options": {}
+      },
+      "id": "delete-temp-vectors",
+      "name": "Delete Temp Vectors",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [910, 100],
+      "credentials": {
+        "postgres": {
+          "id": "yY2GzRzLXTG4anFZ",
+          "name": "WIBOT PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Nettoyer le dossier de fichiers temporaires\nconst fs = require('fs');\nconst path = require('path');\n\n// IMPORTANT: Recuperer conversationId depuis Verify JWT, pas depuis $input\nconst convId = $('Verify JWT').first().json.conversationId;\n// Utiliser le dossier rag-documents/temp-uploads qui est monte en rw\nconst uploadDir = `/home/node/.n8n-files/rag-documents/temp-uploads/${convId}`;\n\ntry {\n  if (fs.existsSync(uploadDir)) {\n    // Supprimer tous les fichiers du dossier\n    const files = fs.readdirSync(uploadDir);\n    for (const file of files) {\n      fs.unlinkSync(path.join(uploadDir, file));\n    }\n    // Supprimer le dossier\n    fs.rmdirSync(uploadDir);\n  }\n} catch (err) {\n  console.error('Error cleaning upload dir:', err.message);\n}\n\nreturn $input.all();"
+      },
+      "id": "cleanup-files",
+      "name": "Cleanup Files",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1020, 100]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM conversations\nWHERE conversation_id = '{{ $('Verify JWT').first().json.conversationId }}'::uuid\n  AND user_id = {{ $('Verify JWT').first().json.userId }}\nRETURNING conversation_id::text;",
+        "options": {}
+      },
+      "id": "delete-conversation",
+      "name": "Delete Conversation",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1130, 100],
+      "credentials": {
+        "postgres": {
+          "id": "yY2GzRzLXTG4anFZ",
+          "name": "WIBOT PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all();\n\nif (!rows || rows.length === 0 || !rows[0].json.conversation_id) {\n  return [{\n    json: {\n      success: false,\n      error: 'Conversation not found or access denied'\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    success: true,\n    deleted_conversation_id: rows[0].json.conversation_id\n  }\n}];"
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1130, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-success",
+      "name": "Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1350, 200]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Verify JWT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify JWT": {
+      "main": [
+        [
+          {
+            "node": "JWT Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "JWT Valid?": {
+      "main": [
+        [
+          {
+            "node": "Delete Temp Vectors",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Unauthorized",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Temp Vectors": {
+      "main": [
+        [
+          {
+            "node": "Cleanup Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cleanup Files": {
+      "main": [
+        [
+          {
+            "node": "Delete Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Conversation": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "WIBOT"
+    }
+  ],
+  "triggerCount": 1,
+  "pinData": {}
+}

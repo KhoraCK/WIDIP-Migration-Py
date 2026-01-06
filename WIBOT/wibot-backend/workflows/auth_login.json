@@ -1,0 +1,274 @@
+{
+  "name": "WIBOT - Auth Login",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "auth/login",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-login",
+      "name": "Webhook Login",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "auth-login"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT * FROM users WHERE username = '{{ $json.body.username }}' AND is_active = true LIMIT 1",
+        "options": {}
+      },
+      "id": "postgres-get-user",
+      "name": "Get User",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [470, 300],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "WIBOT PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-user-exists",
+              "leftValue": "={{ $json.user_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "exists",
+                "operation": "exists"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-user-exists",
+      "name": "User Exists?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputPassword = $('Webhook Login').first().json.body.password;\nconst storedHash = $input.first().json.password_hash;\nconst user = $input.first().json;\n\n// Comparaison simple du mot de passe\nconst isValid = (inputPassword === storedHash);\n\nreturn [{ json: { isValid, user } }];"
+      },
+      "id": "verify-password",
+      "name": "Verify Password",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [910, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-password-valid",
+              "leftValue": "={{ $json.isValid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-password-valid",
+      "name": "Password Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1130, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const user = $input.first().json.user;\n\n// Fonction base64 encode compatible n8n\nfunction toBase64(str) {\n  return Buffer.from(str).toString('base64').replace(/=/g, '').replace(/\\+/g, '-').replace(/\\//g, '_');\n}\n\nconst header = toBase64(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));\n\n// Inclure le niveau d'accreditation dans le JWT\nconst accreditationLevel = user.accreditation_level || 'N1';\n\nconst payload = toBase64(JSON.stringify({\n  userId: user.user_id,\n  username: user.username,\n  role: user.role,\n  accreditationLevel: accreditationLevel,\n  iat: Math.floor(Date.now() / 1000),\n  exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60)\n}));\n\n// Signature simplifiée\nconst signature = toBase64(header + payload + 'wibot_secret').substring(0, 43);\n\nconst token = `${header}.${payload}.${signature}`;\n\nreturn [{\n  json: {\n    success: true,\n    token,\n    user: {\n      id: user.user_id,\n      username: user.username,\n      role: user.role,\n      accreditation_level: accreditationLevel\n    }\n  }\n}];"
+      },
+      "id": "generate-jwt",
+      "name": "Generate JWT",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1350, 100]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-success",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1570, 100]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"error\": \"Invalid credentials\"\n}",
+        "options": {
+          "responseCode": 401,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-invalid-password",
+      "name": "Invalid Password",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1350, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"error\": \"User not found\"\n}",
+        "options": {
+          "responseCode": 401,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-user-not-found",
+      "name": "User Not Found",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [910, 400]
+    }
+  ],
+  "connections": {
+    "Webhook Login": {
+      "main": [
+        [
+          {
+            "node": "Get User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get User": {
+      "main": [
+        [
+          {
+            "node": "User Exists?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "User Exists?": {
+      "main": [
+        [
+          {
+            "node": "Verify Password",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "User Not Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Password": {
+      "main": [
+        [
+          {
+            "node": "Password Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Password Valid?": {
+      "main": [
+        [
+          {
+            "node": "Generate JWT",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Invalid Password",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate JWT": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "WIBOT"
+    }
+  ],
+  "triggerCount": 1,
+  "pinData": {}
+}
