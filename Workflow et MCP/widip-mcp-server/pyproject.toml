@@ -11,20 +11,32 @@ authors = [
 keywords = ["mcp", "model-context-protocol", "n8n", "automation", "glpi", "observium"]
 
 dependencies = [
+    # Web framework
     "fastapi>=0.109.0",
     "uvicorn[standard]>=0.27.0",
     "httpx>=0.26.0",
     "pydantic>=2.5.0",
     "pydantic-settings>=2.1.0",
     "sse-starlette>=1.8.0",
+
+    # LDAP
     "python-ldap>=3.4.0; sys_platform != 'win32'",
     "ldap3>=2.9.1",
+
+    # Database & Cache
     "asyncpg>=0.29.0",
     "redis>=5.0.0",
+
+    # Email
     "aiosmtplib>=3.0.0",
+
+    # Utilities
     "python-dotenv>=1.0.0",
     "structlog>=24.1.0",
     "tenacity>=8.2.0",
+
+    # Workflow Engine (Phase 1)
+    "apscheduler>=3.10.0",
 ]
 
 [project.optional-dependencies]
@@ -42,7 +54,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src"]
+packages = ["src", "workflows"]
 
 [tool.ruff]
 target-version = "py311"
