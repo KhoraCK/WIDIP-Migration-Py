@@ -1,0 +1,277 @@
+{
+  "name": "WIDIP_Dashboard_Safeguard_v1",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## WIDIP Dashboard SAFEGUARD v1.1\n\n### Interface technicien pour:\n- Voir les demandes L3 en attente\n- Approuver/Refuser les actions\n- Consulter l'historique des audits\n- Statistiques SAFEGUARD\n\n### SÉCURITÉ (v1.1):\n- ✅ Authentification Basic Auth obligatoire\n- ✅ Configuration via n8n Credentials\n- ✅ POST requises pour approbation/rejet (CSRF safe)\n- ⚠️ À configurer dans n8n:\n  1. Créer credential \"HTTP Basic Auth\"\n  2. Nom: WIDIP Safeguard Dashboard\n  3. ID: safeguard-dashboard-auth\n  4. Username/Password au choix\n\n### Endpoints:\n- `GET /dashboard` - Interface principale (Basic Auth)\n- `GET /dashboard/api/pending` - Liste JSON\n- `GET /dashboard/api/stats` - Statistiques\n- `GET /dashboard/api/audit` - Logs audit",
+        "height": 300,
+        "width": 320,
+        "color": 6
+      },
+      "id": "note-dashboard",
+      "name": "Documentation Dashboard",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-1000, 100]
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "dashboard",
+        "responseMode": "responseNode",
+        "authentication": "basicAuth",
+        "options": {}
+      },
+      "id": "webhook-dashboard-main",
+      "name": "GET /dashboard",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-620, 200],
+      "webhookId": "dashboard-safeguard-main",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "safeguard-dashboard-auth",
+          "name": "WIDIP Safeguard Dashboard"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Demandes en attente\nSELECT \n  id as approval_id,\n  tool_name,\n  security_level,\n  arguments,\n  request_context->>'requester_workflow' as requester_workflow,\n  created_at,\n  expires_at,\n  ROUND(EXTRACT(EPOCH FROM (expires_at - NOW())) / 60) as minutes_remaining\nFROM safeguard_approvals\nWHERE status = 'pending' AND expires_at > NOW()\nORDER BY created_at DESC\nLIMIT 20;",
+        "options": {}
+      },
+      "id": "postgres-get-pending",
+      "name": "PostgreSQL: Pending",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [-400, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Statistiques globales\nSELECT \n  (SELECT COUNT(*) FROM safeguard_approvals WHERE status = 'pending' AND expires_at > NOW()) as pending_count,\n  (SELECT COUNT(*) FROM safeguard_approvals WHERE status = 'approved' AND approved_at > NOW() - INTERVAL '24 hours') as approved_24h,\n  (SELECT COUNT(*) FROM safeguard_approvals WHERE status = 'rejected' AND approved_at > NOW() - INTERVAL '24 hours') as rejected_24h,\n  (SELECT COUNT(*) FROM safeguard_approvals WHERE status = 'expired' AND expires_at > NOW() - INTERVAL '24 hours') as expired_24h;",
+        "options": {}
+      },
+      "id": "postgres-get-stats",
+      "name": "PostgreSQL: Stats",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [-400, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// =============================================================================\n// Générer le HTML du Dashboard SAFEGUARD\n// =============================================================================\n\nconst pending = $('PostgreSQL: Pending').all().map(i => i.json);\nconst statsRaw = $('PostgreSQL: Stats').first().json;\nconst stats = statsRaw[0] || statsRaw;\n\n// Fonction pour formater les arguments JSON\nfunction formatArgs(args) {\n  if (typeof args === 'string') {\n    try { args = JSON.parse(args); } catch(e) { return args; }\n  }\n  return Object.entries(args || {})\n    .map(([k, v]) => `<strong>${k}:</strong> ${v}`)\n    .join('<br>');\n}\n\n// Générer les lignes du tableau\nconst pendingRows = pending.length > 0 \n  ? pending.map(p => `\n    <tr>\n      <td><code>${p.approval_id}</code></td>\n      <td><span class=\"badge badge-tool\">${p.tool_name}</span></td>\n      <td><span class=\"badge badge-l3\">L3</span></td>\n      <td class=\"args\">${formatArgs(p.arguments)}</td>\n      <td>${p.requester_workflow || 'N/A'}</td>\n      <td>${new Date(p.created_at).toLocaleString('fr-FR')}</td>\n      <td><span class=\"badge ${p.minutes_remaining < 15 ? 'badge-danger' : 'badge-warning'}\">${p.minutes_remaining} min</span></td>\n      <td class=\"actions\">\n        <button class=\"btn btn-approve\" onclick=\"approveAction('${p.approval_id}')\">Approuver</button>\n        <button class=\"btn btn-reject\" onclick=\"rejectAction('${p.approval_id}')\">Refuser</button>\n      </td>\n    </tr>\n  `).join('')\n  : '<tr><td colspan=\"8\" class=\"empty\">Aucune demande en attente</td></tr>';\n\nconst html = `\n<!DOCTYPE html>\n<html lang=\"fr\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>WIDIP SAFEGUARD - Dashboard</title>\n  <meta http-equiv=\"refresh\" content=\"30\">\n  <style>\n    * { box-sizing: border-box; margin: 0; padding: 0; }\n    body {\n      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;\n      background: #1a1a2e;\n      color: #eee;\n      min-height: 100vh;\n    }\n    .header {\n      background: linear-gradient(135deg, #16213e 0%, #1a1a2e 100%);\n      padding: 20px 40px;\n      border-bottom: 1px solid #333;\n      display: flex;\n      justify-content: space-between;\n      align-items: center;\n    }\n    .header h1 {\n      font-size: 24px;\n      display: flex;\n      align-items: center;\n      gap: 10px;\n    }\n    .header h1::before { content: '🔒'; }\n    .refresh-info {\n      font-size: 12px;\n      color: #888;\n    }\n    .container { padding: 30px 40px; }\n    \n    /* Stats Cards */\n    .stats-grid {\n      display: grid;\n      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));\n      gap: 20px;\n      margin-bottom: 30px;\n    }\n    .stat-card {\n      background: #16213e;\n      border-radius: 12px;\n      padding: 20px;\n      text-align: center;\n      border: 1px solid #333;\n    }\n    .stat-card.pending { border-left: 4px solid #ffc107; }\n    .stat-card.approved { border-left: 4px solid #28a745; }\n    .stat-card.rejected { border-left: 4px solid #dc3545; }\n    .stat-card.expired { border-left: 4px solid #6c757d; }\n    .stat-number {\n      font-size: 36px;\n      font-weight: bold;\n      margin-bottom: 5px;\n    }\n    .stat-card.pending .stat-number { color: #ffc107; }\n    .stat-card.approved .stat-number { color: #28a745; }\n    .stat-card.rejected .stat-number { color: #dc3545; }\n    .stat-card.expired .stat-number { color: #6c757d; }\n    .stat-label { font-size: 14px; color: #888; }\n    \n    /* Table */\n    .section-title {\n      font-size: 18px;\n      margin-bottom: 15px;\n      padding-bottom: 10px;\n      border-bottom: 1px solid #333;\n    }\n    table {\n      width: 100%;\n      border-collapse: collapse;\n      background: #16213e;\n      border-radius: 12px;\n      overflow: hidden;\n    }\n    th, td {\n      padding: 12px 15px;\n      text-align: left;\n      border-bottom: 1px solid #333;\n    }\n    th {\n      background: #0f0f23;\n      font-weight: 600;\n      text-transform: uppercase;\n      font-size: 11px;\n      letter-spacing: 0.5px;\n      color: #888;\n    }\n    tr:hover { background: #1f2940; }\n    code {\n      background: #0f0f23;\n      padding: 2px 6px;\n      border-radius: 4px;\n      font-size: 11px;\n    }\n    .args { font-size: 12px; max-width: 250px; }\n    .empty {\n      text-align: center;\n      padding: 40px;\n      color: #666;\n      font-style: italic;\n    }\n    \n    /* Badges */\n    .badge {\n      display: inline-block;\n      padding: 4px 8px;\n      border-radius: 4px;\n      font-size: 11px;\n      font-weight: 600;\n    }\n    .badge-tool { background: #3498db; color: white; }\n    .badge-l3 { background: #e74c3c; color: white; }\n    .badge-warning { background: #f39c12; color: #000; }\n    .badge-danger { background: #e74c3c; color: white; animation: pulse 1s infinite; }\n    @keyframes pulse {\n      0%, 100% { opacity: 1; }\n      50% { opacity: 0.7; }\n    }\n    \n    /* Buttons */\n    .actions { white-space: nowrap; }\n    .btn {\n      display: inline-block;\n      padding: 6px 12px;\n      border-radius: 4px;\n      text-decoration: none;\n      font-size: 12px;\n      font-weight: 600;\n      margin-right: 5px;\n      transition: all 0.2s;\n    }\n    .btn-approve {\n      background: #28a745;\n      color: white;\n    }\n    .btn-approve:hover { background: #218838; }\n    .btn-reject {\n      background: #dc3545;\n      color: white;\n    }\n    .btn-reject:hover { background: #c82333; }\n    \n    /* Footer */\n    .footer {\n      text-align: center;\n      padding: 20px;\n      color: #666;\n      font-size: 12px;\n    }\n  </style>\n</head>\n<body>\n  <div class=\"header\">\n    <h1>WIDIP SAFEGUARD Dashboard</h1>\n    <div class=\"refresh-info\">Actualisation auto toutes les 30s</div>\n  </div>\n  \n  <div class=\"container\">\n    <!-- Stats -->\n    <div class=\"stats-grid\">\n      <div class=\"stat-card pending\">\n        <div class=\"stat-number\">${stats.pending_count || 0}</div>\n        <div class=\"stat-label\">En attente</div>\n      </div>\n      <div class=\"stat-card approved\">\n        <div class=\"stat-number\">${stats.approved_24h || 0}</div>\n        <div class=\"stat-label\">Approuvées (24h)</div>\n      </div>\n      <div class=\"stat-card rejected\">\n        <div class=\"stat-number\">${stats.rejected_24h || 0}</div>\n        <div class=\"stat-label\">Refusées (24h)</div>\n      </div>\n      <div class=\"stat-card expired\">\n        <div class=\"stat-number\">${stats.expired_24h || 0}</div>\n        <div class=\"stat-label\">Expirées (24h)</div>\n      </div>\n    </div>\n    \n    <!-- Pending Requests -->\n    <h2 class=\"section-title\">Demandes en attente de validation</h2>\n    <table>\n      <thead>\n        <tr>\n          <th>ID</th>\n          <th>Tool</th>\n          <th>Niveau</th>\n          <th>Arguments</th>\n          <th>Workflow</th>\n          <th>Créé le</th>\n          <th>Expire</th>\n          <th>Actions</th>\n        </tr>\n      </thead>\n      <tbody>\n        ${pendingRows}\n      </tbody>\n    </table>\n  </div>\n  \n  <div class=\"footer\">\n    WIDIP SAFEGUARD v2.0 | ${new Date().toLocaleString('fr-FR')}\n  </div>\n  \n  <script>\n    // Configuration MCP Server\n    const MCP_SERVER_URL = '${process.env.MCP_SERVER_URL || 'http://mcp-server:3001'}';\n    const MCP_API_KEY = '${process.env.MCP_API_KEY || ''}';\n    \n    // Fonction d'approbation\n    async function approveAction(approvalId) {\n      if (!confirm('Voulez-vous vraiment APPROUVER cette action?')) return;\n      \n      const approver = prompt('Votre email:', 'admin@widip.fr');\n      if (!approver) return;\n      \n      const comment = prompt('Commentaire (optionnel):', '');\n      \n      try {\n        const response = await fetch(\\`\\${MCP_SERVER_URL}/safeguard/approve/\\${approvalId}\\`, {\n          method: 'POST',\n          headers: {\n            'Content-Type': 'application/json',\n            'X-API-Key': MCP_API_KEY\n          },\n          body: JSON.stringify({ approver, comment })\n        });\n        \n        const result = await response.json();\n        \n        if (result.success) {\n          alert('✅ Action approuvée avec succès!\\\\n\\\\nL\\'IA peut maintenant exécuter cette action.');\n          location.reload();\n        } else {\n          alert('❌ Erreur: ' + (result.error || 'Échec de l\\'approbation'));\n        }\n      } catch (error) {\n        alert('❌ Erreur réseau: ' + error.message);\n      }\n    }\n    \n    // Fonction de rejet\n    async function rejectAction(approvalId) {\n      if (!confirm('Voulez-vous vraiment REFUSER cette action?')) return;\n      \n      const approver = prompt('Votre email:', 'admin@widip.fr');\n      if (!approver) return;\n      \n      const comment = prompt('Raison du refus:', '');\n      \n      try {\n        const response = await fetch(\\`\\${MCP_SERVER_URL}/safeguard/reject/\\${approvalId}\\`, {\n          method: 'POST',\n          headers: {\n            'Content-Type': 'application/json',\n            'X-API-Key': MCP_API_KEY\n          },\n          body: JSON.stringify({ approver, comment })\n        });\n        \n        const result = await response.json();\n        \n        if (result.success) {\n          alert('✅ Action refusée avec succès!');\n          location.reload();\n        } else {\n          alert('❌ Erreur: ' + (result.error || 'Échec du rejet'));\n        }\n      } catch (error) {\n        alert('❌ Erreur réseau: ' + error.message);\n      }\n    }\n  </script>\n</body>\n</html>\n`;\n\nreturn [{ json: { html } }];"
+      },
+      "id": "code-generate-html",
+      "name": "Générer HTML Dashboard",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-180, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.html }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/html; charset=utf-8"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-dashboard",
+      "name": "Répondre HTML",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [40, 300]
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "dashboard/api/pending",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-api-pending",
+      "name": "GET /api/pending",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-620, 560],
+      "webhookId": "dashboard-api-pending"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  id as approval_id,\n  tool_name,\n  security_level,\n  arguments,\n  request_context->>'requester_workflow' as requester_workflow,\n  requester_ip,\n  status,\n  created_at,\n  expires_at,\n  ROUND(EXTRACT(EPOCH FROM (expires_at - NOW())) / 60) as minutes_remaining\nFROM safeguard_approvals\nWHERE status = 'pending' AND expires_at > NOW()\nORDER BY created_at DESC;",
+        "options": {}
+      },
+      "id": "postgres-api-pending",
+      "name": "PostgreSQL: API Pending",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [-400, 560]
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "dashboard/api/stats",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-api-stats",
+      "name": "GET /api/stats",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-620, 720],
+      "webhookId": "dashboard-api-stats"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  -- Compteurs actuels\n  (SELECT COUNT(*) FROM safeguard_approvals WHERE status = 'pending' AND expires_at > NOW()) as pending_count,\n  \n  -- Dernières 24h\n  (SELECT COUNT(*) FROM safeguard_approvals WHERE status = 'approved' AND approved_at > NOW() - INTERVAL '24 hours') as approved_24h,\n  (SELECT COUNT(*) FROM safeguard_approvals WHERE status = 'rejected' AND approved_at > NOW() - INTERVAL '24 hours') as rejected_24h,\n  (SELECT COUNT(*) FROM safeguard_approvals WHERE status = 'expired' AND expires_at > NOW() - INTERVAL '24 hours') as expired_24h,\n  \n  -- Par tool (top 5)\n  (SELECT json_agg(t) FROM (\n    SELECT tool_name, COUNT(*) as count\n    FROM safeguard_approvals\n    WHERE created_at > NOW() - INTERVAL '7 days'\n    GROUP BY tool_name\n    ORDER BY count DESC\n    LIMIT 5\n  ) t) as top_tools_7d,\n  \n  -- Temps moyen de décision (en minutes)\n  (SELECT ROUND(AVG(EXTRACT(EPOCH FROM (approved_at - created_at)) / 60))\n   FROM safeguard_approvals\n   WHERE approved_at IS NOT NULL\n     AND approved_at > NOW() - INTERVAL '7 days') as avg_decision_time_min;",
+        "options": {}
+      },
+      "id": "postgres-api-stats",
+      "name": "PostgreSQL: API Stats",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [-400, 720]
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "dashboard/api/audit",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-api-audit",
+      "name": "GET /api/audit",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-620, 880],
+      "webhookId": "dashboard-api-audit"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  id,\n  created_at as timestamp,\n  tool_name,\n  security_level,\n  status as action,\n  requester_ip as caller_ip,\n  request_context->>'workflow_id' as workflow_id,\n  id as approval_id,\n  CASE \n    WHEN status = 'approved' THEN jsonb_build_object('approver', approver, 'comment', approval_comment)\n    WHEN status = 'executed' THEN jsonb_build_object('result', execution_result, 'executed_at', executed_at)\n    WHEN status = 'failed' THEN jsonb_build_object('error', execution_error)\n    ELSE '{}'\n  END as details\nFROM safeguard_approvals\nORDER BY created_at DESC\nLIMIT 100;",
+        "options": {}
+      },
+      "id": "postgres-api-audit",
+      "name": "PostgreSQL: API Audit",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [-400, 880]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "GET /dashboard": {
+      "main": [
+        [
+          {
+            "node": "PostgreSQL: Pending",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "PostgreSQL: Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PostgreSQL: Pending": {
+      "main": [
+        [
+          {
+            "node": "Générer HTML Dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PostgreSQL: Stats": {
+      "main": [
+        [
+          {
+            "node": "Générer HTML Dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Générer HTML Dashboard": {
+      "main": [
+        [
+          {
+            "node": "Répondre HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET /api/pending": {
+      "main": [
+        [
+          {
+            "node": "PostgreSQL: API Pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET /api/stats": {
+      "main": [
+        [
+          {
+            "node": "PostgreSQL: API Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET /api/audit": {
+      "main": [
+        [
+          {
+            "node": "PostgreSQL: API Audit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "dashboard-safeguard-v1.1-20251224-secured",
+  "meta": {
+    "instanceId": "widip-dashboard-safeguard"
+  },
+  "id": "WIDIP_Dashboard_Safeguard_v1",
+  "tags": [
+    {
+      "name": "widip"
+    },
+    {
+      "name": "safeguard"
+    },
+    {
+      "name": "dashboard"
+    }
+  ]
+}

@@ -1,0 +1,334 @@
+{
+  "name": "WIDIP_Enrichisseur_v1",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 18 * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        300
+      ],
+      "id": "enrichisseur-trigger-001",
+      "name": "Daily 18h00"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.MCP_SERVER_URL || 'http://mcp-server:3001' }}/mcp/call",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"tool\": \"enrichisseur_run_batch\",\n  \"arguments\": {\n    \"hours_since\": 24,\n    \"max_tickets\": 50,\n    \"dry_run\": false\n  }\n}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        300
+      ],
+      "id": "enrichisseur-batch-001",
+      "name": "MCP: Run Enrichissement Batch",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "mcp-api-key",
+          "name": "WIDIP MCP API"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Analyse du résultat de l'enrichissement\nconst input = $input.first();\nconst result = input.json;\nconst now = new Date().toISOString();\n\nlet report = {\n  success: false,\n  timestamp: now,\n  summary: '',\n  details: {}\n};\n\nif (result && result.success) {\n  report.success = true;\n  report.summary = `✅ Enrichissement RAG terminé\\n` +\n    `📊 ${result.tickets_found} tickets trouvés\\n` +\n    `🔄 ${result.tickets_already_in_rag} déjà dans le RAG\\n` +\n    `✨ ${result.tickets_injected} nouveaux ajoutés\\n` +\n    `❌ ${result.tickets_failed} échecs`;\n  \n  report.details = {\n    tickets_found: result.tickets_found,\n    tickets_already_in_rag: result.tickets_already_in_rag,\n    tickets_processed: result.tickets_processed,\n    tickets_injected: result.tickets_injected,\n    tickets_failed: result.tickets_failed,\n    started_at: result.started_at,\n    completed_at: result.completed_at\n  };\n  \n  // Calcul du taux de succès\n  const total = result.tickets_found - result.tickets_already_in_rag;\n  if (total > 0) {\n    report.details.success_rate = Math.round((result.tickets_injected / total) * 100) + '%';\n  } else {\n    report.details.success_rate = 'N/A';\n  }\n  \n} else {\n  report.success = false;\n  report.summary = `❌ Échec de l'enrichissement\\n` +\n    `Erreur: ${result?.error || 'Erreur inconnue'}`;\n  report.details = { error: result?.error };\n}\n\n// Déterminer si notification nécessaire\nreport.should_notify = report.details.tickets_injected > 0 || !report.success;\nreport.notification_type = report.success ? 'info' : 'error';\n\nreturn [{ json: report }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        300
+      ],
+      "id": "enrichisseur-analyze-001",
+      "name": "Analyze Results"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-notify",
+              "leftValue": "={{ $json.should_notify }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        960,
+        300
+      ],
+      "id": "enrichisseur-check-notify-001",
+      "name": "Should Notify?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.MCP_SERVER_URL || 'http://mcp-server:3001' }}/mcp/call",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"tool\": \"notify_technician\",\n  \"arguments\": {\n    \"subject\": \"[WIDIP] Rapport Enrichissement RAG - {{ $now.format('dd/MM/yyyy') }}\",\n    \"message\": \"{{ $json.summary.replace(/\\n/g, '\\\\n') }}\",\n    \"channel\": \"teams\",\n    \"priority\": \"{{ $json.notification_type === 'error' ? 'high' : 'low' }}\"\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1200,
+        200
+      ],
+      "id": "enrichisseur-notify-001",
+      "name": "MCP: Notify Teams",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "mcp-api-key",
+          "name": "WIDIP MCP API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.MCP_SERVER_URL || 'http://mcp-server:3001' }}/mcp/call",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"tool\": \"enrichisseur_get_stats\",\n  \"arguments\": {}\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1440,
+        200
+      ],
+      "id": "enrichisseur-stats-001",
+      "name": "MCP: Get RAG Stats",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "mcp-api-key",
+          "name": "WIDIP MCP API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log final avec stats RAG\nconst stats = $input.first().json;\nconst enrichReport = $('Analyze Results').first().json;\nconst now = new Date().toISOString();\n\nconst finalLog = {\n  workflow: 'WIDIP_Enrichisseur_v1',\n  completed_at: now,\n  enrichment_report: enrichReport.details,\n  rag_stats: {\n    total_entries: stats.total_entries,\n    added_last_24h: stats.added_last_24h,\n    added_last_7d: stats.added_last_7d,\n    top_categories: stats.top_categories?.slice(0, 5)\n  },\n  status: enrichReport.success ? 'success' : 'failed'\n};\n\nconsole.log('Enrichissement terminé:', JSON.stringify(finalLog, null, 2));\n\nreturn [{ json: finalLog }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        200
+      ],
+      "id": "enrichisseur-log-001",
+      "name": "Final Log"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        400
+      ],
+      "id": "enrichisseur-noop-001",
+      "name": "No Notification Needed"
+    },
+    {
+      "parameters": {
+        "content": "## WIDIP Enrichisseur v1\n\n### Cercle Vertueux d'Apprentissage\n\nCe workflow s'exécute quotidiennement à 18h00 pour:\n\n1. **Récupérer** les tickets résolus des dernières 24h depuis GLPI\n2. **Filtrer** ceux déjà présents dans le RAG\n3. **Extraire** les connaissances (problème/solution)\n4. **Injecter** dans PostgreSQL + pgvector\n5. **Notifier** l'équipe du résultat\n\n### Résultat\n\nLe RAG s'enrichit automatiquement, améliorant les suggestions pour les futurs tickets similaires.",
+        "height": 380,
+        "width": 300
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        160
+      ],
+      "id": "enrichisseur-note-001",
+      "name": "Documentation"
+    }
+  ],
+  "connections": {
+    "Daily 18h00": {
+      "main": [
+        [
+          {
+            "node": "MCP: Run Enrichissement Batch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP: Run Enrichissement Batch": {
+      "main": [
+        [
+          {
+            "node": "Analyze Results",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Analyze Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Results": {
+      "main": [
+        [
+          {
+            "node": "Should Notify?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Notify?": {
+      "main": [
+        [
+          {
+            "node": "MCP: Notify Teams",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Notification Needed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP: Notify Teams": {
+      "main": [
+        [
+          {
+            "node": "MCP: Get RAG Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP: Get RAG Stats": {
+      "main": [
+        [
+          {
+            "node": "Final Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No Notification Needed": {
+      "main": [
+        [
+          {
+            "node": "MCP: Get RAG Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "WIDIP",
+      "createdAt": "2025-12-23T00:00:00.000Z",
+      "updatedAt": "2025-12-23T00:00:00.000Z"
+    },
+    {
+      "name": "Enrichisseur",
+      "createdAt": "2025-12-23T00:00:00.000Z",
+      "updatedAt": "2025-12-23T00:00:00.000Z"
+    },
+    {
+      "name": "RAG",
+      "createdAt": "2025-12-23T00:00:00.000Z",
+      "updatedAt": "2025-12-23T00:00:00.000Z"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2025-12-23T18:00:00.000Z",
+  "versionId": "v1.0.0"
+}

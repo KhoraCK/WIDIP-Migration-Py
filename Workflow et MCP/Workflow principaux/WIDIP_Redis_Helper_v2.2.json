@@ -1,0 +1,762 @@
+{
+  "name": "WIDIP_Redis_Helper_v2.2",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "action"
+            },
+            {
+              "name": "key"
+            },
+            {
+              "name": "value"
+            },
+            {
+              "name": "ttl",
+              "type": "number"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1184,
+        496
+      ],
+      "id": "c0645627-b57e-4f04-a72b-70739c43149f",
+      "name": "Execute Workflow Trigger"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "redis-helper",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1184,
+        800
+      ],
+      "id": "cf6ba4ac-0a75-4c7d-a79c-4df53ec7f718",
+      "name": "Webhook Trigger",
+      "webhookId": "redis-helper"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Normaliser l'input depuis Execute Workflow Trigger\nconst input = $input.first().json;\nreturn [{\n  json: {\n    action: input.action,\n    key: input.key,\n    value: input.value || '',\n    ttl: input.ttl || 0,\n    source: 'execute_workflow'\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -960,
+        496
+      ],
+      "id": "12a920d4-429a-42c5-9085-59639b521412",
+      "name": "Normalize Execute Input"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Normaliser l'input depuis Webhook\nconst input = $input.first().json;\nconst body = input.body || input;\nreturn [{\n  json: {\n    action: body.action,\n    key: body.key,\n    value: body.value || '',\n    ttl: body.ttl || 0,\n    source: 'webhook'\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -960,
+        800
+      ],
+      "id": "5811d9d5-0284-4db5-857b-200ed81f32f1",
+      "name": "Normalize Webhook Input"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "get",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "GET"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "set",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "SET"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "delete",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "DELETE"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "setnx",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "SETNX"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        -736,
+        640
+      ],
+      "id": "0b227519-b77c-4a1f-8a08-a839ecca9ead",
+      "name": "Switch Action"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "key": "={{ $json.key }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -512,
+        400
+      ],
+      "id": "2bef7469-329d-41f9-8e46-9aa237718caa",
+      "name": "Redis GET",
+      "credentials": {
+        "redis": {
+          "id": "BfBU4NdR67mtsCnq",
+          "name": "WIDIP Redis"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "={{ $json.key }}",
+        "value": "={{ $json.value }}",
+        "expire": "={{ $json.ttl ? true : false }}",
+        "ttl": "={{ $json.ttl || 0 }}"
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -512,
+        544
+      ],
+      "id": "4e127687-18e2-4c83-82fa-98c97fba6d79",
+      "name": "Redis SET",
+      "credentials": {
+        "redis": {
+          "id": "BfBU4NdR67mtsCnq",
+          "name": "WIDIP Redis"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "key": "={{ $json.key }}"
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -512,
+        688
+      ],
+      "id": "e5a59f28-7b64-4ae1-b91a-3639803270b0",
+      "name": "Redis DELETE",
+      "credentials": {
+        "redis": {
+          "id": "BfBU4NdR67mtsCnq",
+          "name": "WIDIP Redis"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// SETNX - Set if Not eXists (pour mutex)\nconst input = $input.first().json;\nreturn [{\n  json: {\n    key: input.key,\n    value: input.value || 'locked',\n    ttl: input.ttl || 60,\n    source: input.source\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -512,
+        848
+      ],
+      "id": "a056cf9f-d293-4a73-a4a0-66931ee15b06",
+      "name": "Prepare SETNX"
+    },
+    {
+      "parameters": {
+        "operation": "customCommand",
+        "command": "SET",
+        "arguments": "={{ $json.key }} {{ $json.value }} NX EX {{ $json.ttl || 60 }}"
+      },
+      "id": "atomic-setnx-node",
+      "name": "Redis Atomic SETNX",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -304,
+        848
+      ],
+      "credentials": {
+        "redis": {
+          "id": "BfBU4NdR67mtsCnq",
+          "name": "WIDIP Redis"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first().json.result;\nconst source = $('Prepare SETNX').first().json.source;\n\nif (result === 'OK') {\n  return [{ json: { success: true, action: 'setnx', message: 'Lock acquired', source } }];\n} else {\n  return [{ json: { success: false, action: 'setnx', message: 'Lock held by another process', source } }];\n}"
+      },
+      "id": "parse-setnx-node",
+      "name": "Parse SETNX Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -80,
+        848
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst source = $('Switch Action').first().json.source;\nreturn [{ json: { success: true, action: 'get', value: input.result || null, source } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -304,
+        400
+      ],
+      "id": "ced96dc7-f825-4d52-a33d-dda2f8f14d7b",
+      "name": "Format GET Response"
+    },
+    {
+      "parameters": {
+        "jsCode": "const source = $('Switch Action').first().json.source;\nreturn [{ json: { success: true, action: 'set', message: 'Value set successfully', source } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -304,
+        544
+      ],
+      "id": "05cbbec0-18d1-41bf-8142-ca97f41e1f91",
+      "name": "Format SET Response"
+    },
+    {
+      "parameters": {
+        "jsCode": "const source = $('Switch Action').first().json.source;\nreturn [{ json: { success: true, action: 'delete', message: 'Key deleted', source } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -304,
+        688
+      ],
+      "id": "04e85236-52b6-4fae-855a-bb16d1084336",
+      "name": "Format DELETE Response"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.source }}",
+              "rightValue": "webhook",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -80,
+        400
+      ],
+      "id": "5799a028-ed8c-4c5c-84f9-a8b5e780434f",
+      "name": "From Webhook? (GET)"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.source }}",
+              "rightValue": "webhook",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -80,
+        544
+      ],
+      "id": "4da8100d-3a36-4caa-b93c-58886888271b",
+      "name": "From Webhook? (SET)"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.source }}",
+              "rightValue": "webhook",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -80,
+        688
+      ],
+      "id": "b4710a7b-b2a2-497a-8b88-608f13634a4c",
+      "name": "From Webhook? (DELETE)"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.source }}",
+              "rightValue": "webhook",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        592,
+        848
+      ],
+      "id": "1d92deba-26b0-4558-93ad-dc6bc5d25cea",
+      "name": "From Webhook? (SETNX)"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        144,
+        288
+      ],
+      "id": "598c53b9-bf22-40dd-a22d-b373b66f3d38",
+      "name": "Respond GET"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        144,
+        448
+      ],
+      "id": "03b8b1be-0e06-4130-94cb-f0a5518d2ed0",
+      "name": "Respond SET"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        144,
+        592
+      ],
+      "id": "abafb672-f7e3-4a43-923e-4f865a159f6d",
+      "name": "Respond DELETE"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        816,
+        752
+      ],
+      "id": "406e0cd2-8492-461e-adc3-a4c80501f0bd",
+      "name": "Respond SETNX"
+    },
+    {
+      "parameters": {
+        "content": "## 🔧 Redis Helper v2.2\n\n### Architecture corrigée\n\nDeux triggers indépendants qui convergent vers le même Switch.\nPas de Merge bloquant.\n\n```\nExecute Workflow Trigger ─→ Normalize ─┐\n                                       ├─→ Switch Action\nWebhook Trigger ──────────→ Normalize ─┘\n```\n\n### Flux par action\n- GET → Redis GET → Format → [Respond si webhook]\n- SET → Redis SET → Format → [Respond si webhook]\n- DELETE → Redis DELETE → Format → [Respond si webhook]\n- SETNX → Atomic SetNX (Custom CMD) → Parse → [Respond si webhook]\n\n### Compatibilité\n- ✅ Execute Sub-Workflow (retourne JSON)\n- ✅ Webhook POST (retourne HTTP 200 + JSON)\n- ✅ ATOMICITÉ GARANTIE\n",
+        "height": 544,
+        "width": 604,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1776,
+        160
+      ],
+      "typeVersion": 1,
+      "id": "450622d1-91cb-4925-8fbe-de787cb4e2a4",
+      "name": "Documentation"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Normalize Execute Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Normalize Webhook Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Execute Input": {
+      "main": [
+        [
+          {
+            "node": "Switch Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Webhook Input": {
+      "main": [
+        [
+          {
+            "node": "Switch Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch Action": {
+      "main": [
+        [
+          {
+            "node": "Redis GET",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Redis SET",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Redis DELETE",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare SETNX",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis GET": {
+      "main": [
+        [
+          {
+            "node": "Format GET Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis SET": {
+      "main": [
+        [
+          {
+            "node": "Format SET Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis DELETE": {
+      "main": [
+        [
+          {
+            "node": "Format DELETE Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format GET Response": {
+      "main": [
+        [
+          {
+            "node": "From Webhook? (GET)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format SET Response": {
+      "main": [
+        [
+          {
+            "node": "From Webhook? (SET)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format DELETE Response": {
+      "main": [
+        [
+          {
+            "node": "From Webhook? (DELETE)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "From Webhook? (GET)": {
+      "main": [
+        [
+          {
+            "node": "Respond GET",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "From Webhook? (SET)": {
+      "main": [
+        [
+          {
+            "node": "Respond SET",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "From Webhook? (DELETE)": {
+      "main": [
+        [
+          {
+            "node": "Respond DELETE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare SETNX": {
+      "main": [
+        [
+          {
+            "node": "Redis Atomic SETNX",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis Atomic SETNX": {
+      "main": [
+        [
+          {
+            "node": "Parse SETNX Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse SETNX Result": {
+      "main": [
+        [
+          {
+            "node": "From Webhook? (SETNX)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "From Webhook? (SETNX)": {
+      "main": [
+        [
+          {
+            "node": "Respond SETNX",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "aCuwZ3jJb1c2dMVY",
+  "tags": []
+}

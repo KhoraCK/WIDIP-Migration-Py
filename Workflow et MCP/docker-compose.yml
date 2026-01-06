@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  # --- Cœur d'Orchestration ---
+  n8n:
+    image: docker.n8n.io/n8nio/n8n
+    restart: always
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_HOST=widip-orchestrator.local
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=http://widip-orchestrator.local:5678/
+      - GENERIC_TIMEZONE=Europe/Paris
+      # Connexion Postgres
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=n8n
+      - DB_POSTGRESDB_USER=n8n
+      - DB_POSTGRESDB_PASSWORD=secret_password
+    volumes:
+      - ./n8n_data:/home/node/.n8n
+    depends_on:
+      - postgres
+      - redis
+
+  # --- Persistance & Cache ---
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: always
+    environment:
+      - POSTGRES_USER=n8n
+      - POSTGRES_PASSWORD=secret_password
+      - POSTGRES_DB=n8n
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:alpine
+    restart: always
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+
+  # --- WIDIP Cockpit (Optionnel: Nginx pour servir le frontend) ---
+  dashboard:
+    image: nginx:alpine
+    volumes:
+      - ./Dashboard/frontend:/usr/share/nginx/html
+      # Mount the verified V2 dashboard as index.html
+      - ./Dashboard/dashboard_v2.html:/usr/share/nginx/html/index.html
+    ports:
+      - "8080:80"

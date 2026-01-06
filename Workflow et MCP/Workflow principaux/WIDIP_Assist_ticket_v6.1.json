@@ -1,0 +1,1127 @@
+{
+  "name": "WIDIP_Assist_ticket_v6.1",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 3
+            }
+          ]
+        }
+      },
+      "id": "7b5d321b-58b5-45ce-81b4-a4974724f70d",
+      "name": "Polling 3min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1792,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "task",
+              "name": "task",
+              "value": "Recherche les nouveaux tickets GLPI des 5 dernières minutes et traite-les automatiquement selon les règles définies.",
+              "type": "string"
+            },
+            {
+              "id": "execution_id",
+              "name": "execution_id",
+              "value": "={{ $execution.id }}",
+              "type": "string"
+            },
+            {
+              "id": "started_at",
+              "name": "started_at",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "76128703-c598-4938-8a98-81ce55111a14",
+      "name": "Initialiser Contexte",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1568,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aCuwZ3jJb1c2dMVY",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ttl": 0,
+            "action": "get",
+            "key": "glpi_health_status"
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -1344,
+        320
+      ],
+      "id": "1b9408c9-6876-4772-9570-60f2677c1a6b",
+      "name": "Redis: Check GLPI Health",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Analyser le statut GLPI\nconst items = $input.all();\nconst context = $('Initialiser Contexte').first().json;\n\nlet glpiStatus = 'ok';\ntry {\n  const redisResult = items[0].json;\n  glpiStatus = redisResult.value || 'ok';\n} catch (e) {\n  glpiStatus = 'ok';\n}\n\nreturn [{\n  json: {\n    ...context,\n    glpi_status: glpiStatus,\n    glpi_available: glpiStatus === 'ok'\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1120,
+        320
+      ],
+      "id": "a94f087d-7f45-4a2f-8a41-2d5b5bf1f209",
+      "name": "Analyze GLPI Health"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "61ed0e01-37ab-40f7-9491-b0640fb6d1a7",
+              "leftValue": "={{ $json.glpi_available }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -896,
+        320
+      ],
+      "id": "43eddcfa-9725-4196-95ef-aa5822eafe93",
+      "name": "IF GLPI OK?"
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "Tu es l'Agent Support WIDIP, un assistant IA autonome pour le traitement des tickets de support informatique.\n\nWIDIP est un hébergeur de données pour le secteur médico-social (800+ établissements). Tu gères environ 20 000 tickets par an.\n\n## TES OUTILS DISPONIBLES\n\n### MCP Memory\n- memory_search_similar_cases(symptom_description) → Trouve des précédents pour aider au diagnostic\n\n### MCP GLPI (Gestion des tickets)\n- glpi_search_new_tickets(minutes_since, limit)\n- glpi_get_ticket_details(ticket_id)\n- glpi_add_ticket_followup(ticket_id, content, is_private)\n- glpi_close_ticket(ticket_id, solution)\n- glpi_search_client(name, email, phone)\n\n### MCP Notification\n- notify_technician(ticket_id, subject, message, priority)\n\n### Active Directory (Gestion des comptes)\n- ad_check_user(username)\n- ad_reset_password(username)\n- ad_get_user_info(username)\n- ad_unlock_account(username)\n\n### MySecret (Liens sécurisés)\n- mysecret_create_secret(payload, expire_days, expire_views)\n\n## CATÉGORIES ET ACTIONS\n\n### RESET_MDP\n1. glpi_get_ticket_details → récupérer le contenu\n2. ad_check_user → vérifier utilisateur\n3. ad_reset_password → réinitialiser\n4. mysecret_create_secret → créer lien sécurisé\n5. glpi_send_email → envoyer email via GLPI\n6. glpi_add_ticket_followup → documenter\n7. glpi_close_ticket → clôturer\n\n### DEBLOCAGE_COMPTE\n1. ad_check_user → vérifier statut\n2. ad_unlock_account → débloquer\n3. glpi.add_ticket_followup → documenter\n4. glpi_close_ticket → clôturer\n\n### TICKETS #DIAG (Diagnostic Réseau)\n**NOUVEAU** : Les tickets avec tag #DIAG nécessitent une validation humaine sur Phibee.\n\nFlux :\n1. glpi_get_ticket_details → Récupérer contexte (Client, Device, IP)\n2. notify_technician → Envoyer demande de vérification Phibee\n   Message : \"Ticket #{id} - {Client} : Alerte réseau détectée sur {Device}. Merci de vérifier le statut du lien sur Phibee et répondre : [LIEN UP] ou [LIEN DOWN]\"\n3. glpi_add_ticket_followup → Documenter \"Demande validation Phibee envoyée au technicien\"\n4. NE PAS clôturer le ticket - Attendre la réponse du technicien\n\n⚠️ IMPORTANT : Pour les tickets #DIAG, tu demandes juste la validation. Le technicien répondra dans le followup.\nTu ne proposes JAMAIS de solution technique pour un #DIAG sans la réponse Phibee.\n\n### CREATION_COMPTE / MODIFICATION / AUTRE\n→ glpi_add_ticket_followup (is_private=true) et escalader\n\n## FORMAT DE RÉPONSE\n\n```json\n{\n  \"tickets_found\": 0,\n  \"tickets_processed\": [],\n  \"tickets_diag_pending_validation\": [],\n  \"tickets_escalated\": [],\n  \"errors\": []\n}\n```\n\nCommence par glpi_search_new_tickets(5) puis traite chaque ticket.",
+          "maxIterations": 15
+        }
+      },
+      "id": "a0e84e51-a183-4144-a0e4-ece85c068a5c",
+      "name": "Agent Support WIDIP",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        0,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "model": "qwen2.5:14b",
+        "options": {
+          "temperature": 0.1,
+          "numCtx": 16384,
+          "numPredict": 4096
+        }
+      },
+      "id": "3181711b-f76d-4482-a442-e39e0a96f050",
+      "name": "Ollama - Qwen 2.5 14B",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        -256,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "widip-agent-{{ $now.toFormat('yyyy-MM-dd') }}",
+        "contextWindowLength": 20
+      },
+      "id": "9005f323-2cd2-47fe-b8ad-79478eacdd23",
+      "name": "Memory Buffer",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        -128,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "endpointUrl": "http://localhost:3001/mcp/sse",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        224
+      ],
+      "id": "b0bc8ad3-48f0-40bc-8f29-5daae99d3d13",
+      "name": "MCP Client GLPI"
+    },
+    {
+      "parameters": {
+        "endpointUrl": "http://localhost:3001/mcp/sse",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.2,
+      "position": [
+        64,
+        350
+      ],
+      "id": "mcp-client-memory-assist",
+      "name": "MCP Client Memory"
+    },
+    {
+      "parameters": {
+        "endpointUrl": "http://localhost:3001/mcp/sse",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.2,
+      "position": [
+        128,
+        224
+      ],
+      "id": "0df3e82d-561b-4d67-aa87-2b26c29a41f4",
+      "name": "MCP Active Directory"
+    },
+    {
+      "parameters": {
+        "endpointUrl": "http://localhost:3001/mcp/sse",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.2,
+      "position": [
+        256,
+        224
+      ],
+      "id": "efb2df40-c7de-4478-9c54-d49dac69d646",
+      "name": "MCP MySecret"
+    },
+    {
+      "parameters": {
+        "jsCode": "const output = $input.first().json;\nconst context = $('Initialiser Contexte').first().json;\nconst timestamp = new Date().toISOString();\n\nlet result = {\n  execution_id: context.execution_id,\n  started_at: context.started_at,\n  completed_at: timestamp,\n  status: 'success',\n  branch: 'agent',\n  tickets_found: 0,\n  tickets_processed: [],\n  tickets_escalated: [],\n  errors: [],\n  raw_output: ''\n};\n\nconst outputText = output.output || '';\nresult.raw_output = outputText.substring(0, 2000);\n\nconst jsonMatch = outputText.match(/```json\\s*([\\s\\S]*?)\\s*```/);\nif (jsonMatch) {\n  try {\n    const parsed = JSON.parse(jsonMatch[1]);\n    result.tickets_found = parsed.tickets_found || 0;\n    result.tickets_processed = parsed.tickets_processed || [];\n    result.tickets_escalated = parsed.tickets_escalated || [];\n    result.errors = parsed.errors || [];\n  } catch (e) {\n    const ticketMatches = outputText.match(/ticket[\\s#]*?(\\d+)/gi);\n    if (ticketMatches) {\n      result.tickets_found = [...new Set(ticketMatches.map(m => m.match(/\\d+/)[0]))].length;\n    }\n  }\n} else {\n  const ticketMatches = outputText.match(/ticket[\\s#]*?(\\d+)/gi);\n  if (ticketMatches) {\n    const uniqueIds = [...new Set(ticketMatches.map(m => m.match(/\\d+/)[0]))];\n    result.tickets_found = uniqueIds.length;\n    result.tickets_processed = uniqueIds.map(id => ({id: parseInt(id), category: 'unknown', action: 'processed'}));\n  }\n}\n\nresult.actions_detected = [];\nif (outputText.includes('reset_password') || outputText.includes('réinitialisé')) result.actions_detected.push('reset_password');\nif (outputText.includes('close_ticket') || outputText.includes('clôturé')) result.actions_detected.push('close_ticket');\nif (outputText.includes('add_ticket_followup') || outputText.includes('followup')) result.actions_detected.push('followup');\nif (outputText.includes('send_email') || outputText.includes('email envoyé')) result.actions_detected.push('email');\nif (outputText.includes('unlock_account') || outputText.includes('débloqué')) result.actions_detected.push('unlock_account');\n\nconst startTime = new Date(context.started_at);\nconst endTime = new Date(timestamp);\nresult.duration_seconds = Math.round((endTime - startTime) / 1000);\n\nreturn [{ json: result }];"
+      },
+      "id": "ebae1b60-d0da-4db7-bc59-9a0b81ce847f",
+      "name": "Parser Résultats Agent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        816,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-processed",
+              "leftValue": "={{ $json.tickets_found }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "9046f13f-66d3-4513-95cd-44792fb0ffd5",
+      "name": "Tickets traités ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "notification",
+              "name": "message",
+              "value": "=🤖 *Agent WIDIP v6* - {{ $now.toFormat('dd/MM HH:mm') }}\n\n✅ *{{ $json.tickets_found }}* ticket(s) traité(s) en *{{ $json.duration_seconds }}s*\n📋 Actions: {{ $json.actions_detected.join(', ') || 'Aucune' }}",
+              "type": "string"
+            },
+            {
+              "id": "channel",
+              "name": "channel",
+              "value": "#support-bot",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "5b572020-59b5-4535-8d32-4921f98fcf69",
+      "name": "Préparer Notification Agent",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1488,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "log",
+              "name": "log_entry",
+              "value": "={{ $now.toFormat('yyyy-MM-dd HH:mm:ss') }} | Agent: Aucun ticket | Durée: {{ $json.duration_seconds }}s",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "27df6b9b-d1f8-4c8f-986a-bc8a3ad1bc1a",
+      "name": "Log Inactivité Agent",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1488,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const error = $input.first().json;\nconst context = $('Initialiser Contexte').first().json;\nconst timestamp = new Date().toISOString();\n\nreturn [{\n  json: {\n    execution_id: context.execution_id,\n    started_at: context.started_at,\n    failed_at: timestamp,\n    completed_at: timestamp,\n    status: 'error',\n    branch: 'agent',\n    tickets_found: 0,\n    tickets_processed: [],\n    tickets_escalated: [],\n    actions_detected: [],\n    duration_seconds: Math.round((new Date(timestamp) - new Date(context.started_at)) / 1000),\n    errors: [error.error?.message || 'Erreur inconnue'],\n    error_message: error.error?.message || 'Erreur inconnue',\n    error_type: error.error?.name || 'UnknownError',\n    raw_output: error.error?.stack?.substring(0, 500) || ''\n  }\n}];"
+      },
+      "id": "1ec83094-9289-4b8b-948e-65fa626a62c7",
+      "name": "Parser Erreur Agent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        592,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "error_notif",
+              "name": "message",
+              "value": "=🚨 *ERREUR Agent WIDIP v6* - {{ $now.toFormat('dd/MM HH:mm') }}\n\n❌ Type: {{ $json.error_type }}\n📝 Message: {{ $json.error_message }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "eaa13c16-7e58-457b-a447-f0c9ce8a6651",
+      "name": "Notification Erreur Agent",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        816,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// =============================================================================\n// Skip Cycle - GLPI Down\n// =============================================================================\n\nconst context = $('Initialiser Contexte').first().json;\n\nreturn [{\n  json: {\n    execution_id: context.execution_id,\n    started_at: context.started_at,\n    completed_at: new Date().toISOString(),\n    status: 'skipped',\n    branch: 'none',\n    skip_reason: 'GLPI unavailable - Circuit Breaker active',\n    tickets_found: 0,\n    tickets_processed: [],\n    tickets_escalated: [],\n    diag_processed: [],\n    actions_detected: [],\n    errors: [],\n    duration_seconds: Math.round((Date.now() - new Date(context.started_at).getTime()) / 1000),\n    message: 'Cycle skipped - GLPI down, will retry in 3 minutes'\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -672,
+        512
+      ],
+      "id": "b5be16bd-bb76-47cd-9547-f0b53186d426",
+      "name": "Skip Cycle - GLPI Down"
+    },
+    {
+      "parameters": {
+        "jsCode": "// =============================================================================\n// BRANCHE DIAG v6 - Chercher les followups contenant #DIAG\n// =============================================================================\n// Cette branche s'exécute en parallèle de l'Agent Support\n// Elle cherche les tickets avec des codes diagnostic client\n// Format attendu: #DIAG gw=ok int=fail dns=ok ping=12ms\n// =============================================================================\n\nconst context = $input.first().json;\nconst results = [];\n\ntry {\n  // Chercher les followups récents (5 dernières minutes) via API GLPI\n  // On utilise httpRequest car on a besoin d'une recherche spécifique\n  const glpiResponse = await this.helpers.httpRequest({\n    method: 'GET',\n    url: 'http://glpi.widip.local/apirest.php/search/ITILFollowup',\n    headers: {\n      'App-Token': '{{ $credentials.glpiApi.appToken }}',\n      'Session-Token': '{{ $credentials.glpiApi.sessionToken }}'\n    },\n    qs: {\n      'criteria[0][field]': 'content',\n      'criteria[0][searchtype]': 'contains',\n      'criteria[0][value]': '#DIAG',\n      'criteria[1][link]': 'AND',\n      'criteria[1][field]': 'date_mod',\n      'criteria[1][searchtype]': 'morethan',\n      'criteria[1][value]': '-5 MINUTE',\n      'forcedisplay[0]': 'id',\n      'forcedisplay[1]': 'content',\n      'forcedisplay[2]': 'items_id',\n      'forcedisplay[3]': 'date_mod'\n    },\n    json: true\n  });\n  \n  const followups = glpiResponse.data || [];\n  \n  for (const followup of followups) {\n    const content = followup.content || followup[2] || '';\n    const ticketId = followup.items_id || followup[3];\n    const followupId = followup.id || followup[1];\n    \n    // Extraire le code DIAG avec regex\n    const diagMatch = content.match(/#DIAG\\s+([^\\n]+)/i);\n    \n    if (diagMatch) {\n      const diagString = diagMatch[1].trim();\n      const diagCode = `DIAG-${followupId}-${Date.now()}`;\n      \n      results.push({\n        json: {\n          ...context,\n          diag_found: true,\n          diag_code: diagCode,\n          diag_raw: diagString,\n          ticket_id: ticketId,\n          followup_id: followupId,\n          followup_content: content,\n          detected_at: new Date().toISOString()\n        }\n      });\n    }\n  }\n  \n} catch (e) {\n  console.log('[DIAG Branch] Error searching followups:', e.message);\n  // En cas d'erreur, on continue sans bloquer\n}\n\n// Si aucun DIAG trouvé, retourner un item vide pour le flux\nif (results.length === 0) {\n  results.push({\n    json: {\n      ...context,\n      diag_found: false,\n      diag_count: 0,\n      message: 'Aucun code #DIAG trouvé dans les followups récents'\n    }\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        512
+      ],
+      "id": "a42bdd4e-8cd4-4b39-a9bf-b968843cc0b8",
+      "name": "Chercher Followups #DIAG"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check-diag-found",
+              "leftValue": "={{ $json.diag_found }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        224,
+        512
+      ],
+      "id": "3a6933ae-c2f5-4f02-ba75-3b64006e5a8f",
+      "name": "DIAG trouvés ?"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aCuwZ3jJb1c2dMVY",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "action": "get",
+            "key": "=diag_processed_{{ $json.followup_id }}"
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        448,
+        416
+      ],
+      "id": "0c28f7b5-9671-4777-a360-263071c08d5c",
+      "name": "Redis: DIAG déjà traité ?",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check-not-processed",
+              "leftValue": "={{ $json.value }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        672,
+        416
+      ],
+      "id": "b7edfcda-1add-407b-b81c-0c6879bf9058",
+      "name": "Pas encore traité ?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// =============================================================================\n// Parser le format DIAG: #DIAG gw=ok int=fail dns=ok ping=12ms\n// =============================================================================\n\nconst item = $input.first().json;\nconst diagData = $('Chercher Followups #DIAG').first().json;\n\nconst diagRaw = diagData.diag_raw || '';\n\n// Parser les clés=valeurs\nconst parsedDiag = {\n  gw: null,      // Gateway (passerelle locale)\n  int: null,     // Internet (8.8.8.8 ou similaire)\n  dns: null,     // Résolution DNS\n  ping: null,    // Latence en ms\n  trace: null,   // Dernier hop traceroute (optionnel)\n  raw: diagRaw\n};\n\n// Regex pour extraire key=value\nconst kvPairs = diagRaw.match(/(\\w+)=([\\w.]+)/g) || [];\n\nfor (const pair of kvPairs) {\n  const [key, value] = pair.split('=');\n  const keyLower = key.toLowerCase();\n  \n  if (keyLower === 'gw' || keyLower === 'gateway') {\n    parsedDiag.gw = value.toLowerCase();\n  } else if (keyLower === 'int' || keyLower === 'internet') {\n    parsedDiag.int = value.toLowerCase();\n  } else if (keyLower === 'dns') {\n    parsedDiag.dns = value.toLowerCase();\n  } else if (keyLower === 'ping' || keyLower === 'latency') {\n    parsedDiag.ping = value.replace('ms', '');\n  } else if (keyLower === 'trace' || keyLower === 'hop') {\n    parsedDiag.trace = value;\n  }\n}\n\n// Valider que le parsing a fonctionné\nconst hasValidData = parsedDiag.gw !== null || parsedDiag.int !== null;\n\nreturn [{\n  json: {\n    ...diagData,\n    parsed_diag: parsedDiag,\n    parse_success: hasValidData,\n    parsed_at: new Date().toISOString()\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        416
+      ],
+      "id": "729c5053-5fac-48a1-b818-6ea98a7433d8",
+      "name": "Parser Format DIAG"
+    },
+    {
+      "parameters": {
+        "jsCode": "// =============================================================================\n// Analyser le diagnostic et déterminer la responsabilité\n// =============================================================================\n// Règles de décision:\n// | gw   | int  | dns  | → Responsabilité        |\n// |------|------|------|-------------------------|\n// | ok   | fail | *    | FAI                     |\n// | ok   | ok   | fail | FAI (DNS)               |\n// | fail | *    | *    | Local/Câblage           |\n// | ok   | ok   | ok   | Intermittent/Résolu     |\n// =============================================================================\n\nconst item = $input.first().json;\nconst diag = item.parsed_diag;\n\nlet responsibility = 'indetermine';\nlet confidence = 0;\nlet explanation = '';\nlet recommendedAction = '';\nlet severity = 'medium';\n\n// Normaliser les valeurs (ok, fail, null)\nconst gw = diag.gw === 'ok' || diag.gw === '1' || diag.gw === 'true' ? 'ok' : \n          diag.gw === 'fail' || diag.gw === '0' || diag.gw === 'false' ? 'fail' : null;\nconst int = diag.int === 'ok' || diag.int === '1' || diag.int === 'true' ? 'ok' : \n           diag.int === 'fail' || diag.int === '0' || diag.int === 'false' ? 'fail' : null;\nconst dns = diag.dns === 'ok' || diag.dns === '1' || diag.dns === 'true' ? 'ok' : \n           diag.dns === 'fail' || diag.dns === '0' || diag.dns === 'false' ? 'fail' : null;\n\n// Logique de décision\nif (gw === 'fail') {\n  // Passerelle inaccessible = problème local\n  responsibility = 'local';\n  confidence = 90;\n  explanation = 'La passerelle locale (box/routeur) est inaccessible depuis le poste client. ' +\n                'Cela indique un problème de câblage, de configuration réseau locale, ou un équipement défaillant.';\n  recommendedAction = 'Vérifier le câble réseau, redémarrer le switch/routeur local, vérifier la configuration IP du poste.';\n  severity = 'high';\n  \n} else if (gw === 'ok' && int === 'fail') {\n  // Passerelle OK mais pas d'internet = FAI\n  responsibility = 'fai';\n  confidence = 85;\n  explanation = 'Le réseau local fonctionne (passerelle accessible) mais la connexion Internet est coupée. ' +\n                'Cela indique très probablement une panne du côté du FAI.';\n  recommendedAction = 'Contacter le FAI pour signaler la panne. Vérifier si d\\'autres clients du même FAI sont impactés.';\n  severity = 'high';\n  \n} else if (gw === 'ok' && int === 'ok' && dns === 'fail') {\n  // Internet OK mais DNS fail = problème DNS (souvent FAI)\n  responsibility = 'fai_dns';\n  confidence = 75;\n  explanation = 'La connexion Internet fonctionne mais la résolution DNS échoue. ' +\n                'Cela peut être un problème des serveurs DNS du FAI ou une configuration DNS incorrecte.';\n  recommendedAction = 'Essayer de changer les DNS (8.8.8.8, 1.1.1.1). Si le problème persiste, contacter le FAI.';\n  severity = 'medium';\n  \n} else if (gw === 'ok' && int === 'ok' && (dns === 'ok' || dns === null)) {\n  // Tout fonctionne = problème résolu ou intermittent\n  responsibility = 'resolu';\n  confidence = 80;\n  explanation = 'Le diagnostic client indique que tous les tests réseau sont passés avec succès. ' +\n                'Le problème semble résolu ou était intermittent.';\n  recommendedAction = 'Surveiller la situation. Si le problème réapparaît, demander un nouveau diagnostic.';\n  severity = 'low';\n  \n} else {\n  // Données insuffisantes\n  responsibility = 'indetermine';\n  confidence = 30;\n  explanation = 'Les données du diagnostic sont insuffisantes pour déterminer la responsabilité. ' +\n                `Données reçues: gw=${gw}, int=${int}, dns=${dns}`;\n  recommendedAction = 'Demander au client de relancer l\\'outil diagnostic ou investiguer manuellement.';\n  severity = 'medium';\n}\n\n// Ajouter info latence si disponible\nlet latencyInfo = '';\nif (diag.ping) {\n  const pingMs = parseInt(diag.ping);\n  if (pingMs > 100) {\n    latencyInfo = ` Latence élevée détectée: ${pingMs}ms (peut indiquer une saturation réseau).`;\n  } else if (pingMs > 0) {\n    latencyInfo = ` Latence normale: ${pingMs}ms.`;\n  }\n}\n\nreturn [{\n  json: {\n    ...item,\n    analysis: {\n      responsibility: responsibility,\n      responsibility_label: {\n        'fai': 'FAI (Fournisseur d\\'Accès Internet)',\n        'fai_dns': 'FAI (Problème DNS)',\n        'local': 'Équipement local / Câblage',\n        'widip': 'Infrastructure WIDIP',\n        'resolu': 'Problème résolu / Intermittent',\n        'indetermine': 'Indéterminé - Investigation requise'\n      }[responsibility] || responsibility,\n      confidence: confidence,\n      explanation: explanation + latencyInfo,\n      recommended_action: recommendedAction,\n      severity: severity,\n      raw_values: {\n        gw: gw,\n        int: int,\n        dns: dns,\n        ping: diag.ping\n      }\n    },\n    analyzed_at: new Date().toISOString()\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        416
+      ],
+      "id": "244e7620-50f6-4307-85e6-41c0909c7d87",
+      "name": "Analyser Responsabilité"
+    },
+    {
+      "parameters": {
+        "jsCode": "// =============================================================================\n// Préparer le followup GLPI avec le résultat de l'analyse\n// =============================================================================\n\nconst item = $input.first().json;\nconst analysis = item.analysis;\nconst diag = item.parsed_diag;\n\n// Icônes selon responsabilité\nconst icons = {\n  'fai': '🌐',\n  'fai_dns': '🔤',\n  'local': '🔌',\n  'widip': '🏢',\n  'resolu': '✅',\n  'indetermine': '❓'\n};\n\nconst statusIcon = icons[analysis.responsibility] || '📊';\n\n// Construire le contenu du followup\nconst followupContent = `\n${statusIcon} **ANALYSE DIAGNOSTIC AUTOMATIQUE**\n\n**Responsabilité identifiée:** ${analysis.responsibility_label}\n**Confiance:** ${analysis.confidence}%\n**Sévérité:** ${analysis.severity.toUpperCase()}\n\n---\n\n**📊 Résultats du diagnostic client:**\n- Passerelle (gateway): ${analysis.raw_values.gw || 'N/A'} ${analysis.raw_values.gw === 'ok' ? '✅' : analysis.raw_values.gw === 'fail' ? '❌' : '⚪'}\n- Internet: ${analysis.raw_values.int || 'N/A'} ${analysis.raw_values.int === 'ok' ? '✅' : analysis.raw_values.int === 'fail' ? '❌' : '⚪'}\n- DNS: ${analysis.raw_values.dns || 'N/A'} ${analysis.raw_values.dns === 'ok' ? '✅' : analysis.raw_values.dns === 'fail' ? '❌' : '⚪'}\n- Latence: ${analysis.raw_values.ping ? analysis.raw_values.ping + 'ms' : 'N/A'}\n\n---\n\n**🔍 Analyse:**\n${analysis.explanation}\n\n**💡 Action recommandée:**\n${analysis.recommended_action}\n\n---\n_Analyse automatique WIDIP v6 - ${new Date().toLocaleString('fr-FR')}_\n`.trim();\n\n// Déterminer si le followup doit être privé ou public\n// Privé si indéterminé ou si c'est un problème WIDIP\nconst isPrivate = analysis.responsibility === 'indetermine' || analysis.responsibility === 'widip';\n\nreturn [{\n  json: {\n    ...item,\n    followup: {\n      ticket_id: item.ticket_id,\n      content: followupContent,\n      is_private: isPrivate\n    },\n    prepared_at: new Date().toISOString()\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        416
+      ],
+      "id": "d9a6d10f-de5c-44a5-8ecf-2df200034e83",
+      "name": "Préparer Followup GLPI"
+    },
+    {
+      "parameters": {
+        "jsCode": "// =============================================================================\n// Envoyer le followup via MCP GLPI\n// =============================================================================\n\nconst item = $input.first().json;\nconst followup = item.followup;\n\ntry {\n  // Appeler le MCP GLPI pour ajouter le followup\n  const response = await this.helpers.httpRequest({\n    method: 'POST',\n    url: 'http://localhost:5678/webhook/mcp-glpi-action',\n    body: {\n      operation: 'add_ticket_followup',\n      ticket_id: followup.ticket_id,\n      content: followup.content,\n      is_private: followup.is_private\n    },\n    json: true\n  });\n  \n  return [{\n    json: {\n      ...item,\n      glpi_response: response,\n      followup_sent: true,\n      sent_at: new Date().toISOString()\n    }\n  }];\n  \n} catch (e) {\n  console.log('[DIAG] Error sending followup:', e.message);\n  return [{\n    json: {\n      ...item,\n      followup_sent: false,\n      followup_error: e.message,\n      sent_at: new Date().toISOString()\n    }\n  }];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        416
+      ],
+      "id": "3777c540-5df5-495a-860b-2417067b8c71",
+      "name": "Envoyer Followup GLPI"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aCuwZ3jJb1c2dMVY",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "action": "set",
+            "key": "=diag_processed_{{ $json.followup_id }}",
+            "value": "={{ JSON.stringify({ processed_at: $now.toISO(), responsibility: $json.analysis.responsibility, ticket_id: $json.ticket_id }) }}",
+            "ttl": 86400
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1792,
+        416
+      ],
+      "id": "69c640b0-eded-4677-a8aa-3e29508d33c5",
+      "name": "Redis: Marquer DIAG traité",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// =============================================================================\n// Formatter le résultat final de la branche DIAG\n// =============================================================================\n\nconst item = $input.first().json;\nconst context = $('Initialiser Contexte').first().json;\n\nreturn [{\n  json: {\n    execution_id: context.execution_id,\n    started_at: context.started_at,\n    completed_at: new Date().toISOString(),\n    status: 'success',\n    branch: 'diag',\n    tickets_found: 0,\n    tickets_processed: [],\n    tickets_escalated: [],\n    diag_processed: [{\n      ticket_id: item.ticket_id,\n      followup_id: item.followup_id,\n      responsibility: item.analysis?.responsibility || 'unknown',\n      confidence: item.analysis?.confidence || 0,\n      followup_sent: item.followup_sent || false\n    }],\n    actions_detected: ['diag_analysis', 'followup_added'],\n    duration_seconds: Math.round((Date.now() - new Date(context.started_at).getTime()) / 1000),\n    errors: item.followup_error ? [item.followup_error] : [],\n    raw_output: `DIAG analyzed: ${item.analysis?.responsibility || 'unknown'} (${item.analysis?.confidence || 0}%)`\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2016,
+        416
+      ],
+      "id": "6862bba4-20d6-43e4-ad73-55b862cc9a0a",
+      "name": "Formatter Résultat DIAG"
+    },
+    {
+      "parameters": {
+        "jsCode": "// =============================================================================\n// Aucun DIAG à traiter - Retourner résultat vide\n// =============================================================================\n\nconst context = $('Initialiser Contexte').first().json;\n\nreturn [{\n  json: {\n    execution_id: context.execution_id,\n    started_at: context.started_at,\n    completed_at: new Date().toISOString(),\n    status: 'success',\n    branch: 'diag',\n    tickets_found: 0,\n    tickets_processed: [],\n    tickets_escalated: [],\n    diag_processed: [],\n    actions_detected: [],\n    duration_seconds: Math.round((Date.now() - new Date(context.started_at).getTime()) / 1000),\n    errors: [],\n    raw_output: 'No DIAG codes found in recent followups'\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        608
+      ],
+      "id": "38def508-c9ad-4fde-ab95-fd0c7290233f",
+      "name": "Aucun DIAG"
+    },
+    {
+      "parameters": {
+        "jsCode": "// =============================================================================\n// DIAG déjà traité - Skip\n// =============================================================================\n\nconst context = $('Initialiser Contexte').first().json;\nconst diagData = $('Chercher Followups #DIAG').first().json;\n\nreturn [{\n  json: {\n    execution_id: context.execution_id,\n    started_at: context.started_at,\n    completed_at: new Date().toISOString(),\n    status: 'skipped',\n    branch: 'diag',\n    skip_reason: 'DIAG already processed',\n    skipped_followup_id: diagData.followup_id,\n    tickets_found: 0,\n    tickets_processed: [],\n    tickets_escalated: [],\n    diag_processed: [],\n    actions_detected: [],\n    duration_seconds: Math.round((Date.now() - new Date(context.started_at).getTime()) / 1000),\n    errors: [],\n    raw_output: `DIAG ${diagData.followup_id} already processed, skipping`\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        608
+      ],
+      "id": "39da8754-4bea-4076-a591-d3bd97435dc8",
+      "name": "DIAG déjà traité"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "id": "26dd0997-a7b5-4cab-a29e-b56c01673559",
+      "name": "Merge Toutes Branches",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        2240,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// =============================================================================\n// Consolider les résultats des deux branches (Agent + DIAG)\n// =============================================================================\n\nconst items = $input.all();\nconst context = $('Initialiser Contexte').first().json;\n\n// Agréger les résultats\nlet consolidated = {\n  execution_id: context.execution_id,\n  started_at: context.started_at,\n  completed_at: new Date().toISOString(),\n  status: 'success',\n  \n  // Métriques Agent\n  agent_tickets_found: 0,\n  agent_tickets_processed: [],\n  agent_tickets_escalated: [],\n  agent_actions: [],\n  \n  // Métriques DIAG\n  diag_processed: [],\n  diag_responsibilities: [],\n  \n  // Erreurs combinées\n  errors: [],\n  \n  duration_seconds: 0\n};\n\nfor (const item of items) {\n  const data = item.json;\n  \n  if (data.branch === 'agent') {\n    consolidated.agent_tickets_found = data.tickets_found || 0;\n    consolidated.agent_tickets_processed = data.tickets_processed || [];\n    consolidated.agent_tickets_escalated = data.tickets_escalated || [];\n    consolidated.agent_actions = data.actions_detected || [];\n  } else if (data.branch === 'diag') {\n    consolidated.diag_processed = data.diag_processed || [];\n    if (data.diag_processed?.length > 0) {\n      consolidated.diag_responsibilities = data.diag_processed.map(d => d.responsibility);\n    }\n  }\n  \n  // Combiner les erreurs\n  if (data.errors?.length > 0) {\n    consolidated.errors.push(...data.errors);\n  }\n  \n  // Prendre la plus grande durée\n  if (data.duration_seconds > consolidated.duration_seconds) {\n    consolidated.duration_seconds = data.duration_seconds;\n  }\n  \n  // Si une branche a échoué, marquer comme erreur\n  if (data.status === 'error') {\n    consolidated.status = 'partial_error';\n  }\n}\n\n// Construire le résumé pour les logs\nconsolidated.summary = {\n  agent: `${consolidated.agent_tickets_found} ticket(s), actions: ${consolidated.agent_actions.join(', ') || 'aucune'}`,\n  diag: `${consolidated.diag_processed.length} DIAG traité(s), responsabilités: ${consolidated.diag_responsibilities.join(', ') || 'aucune'}`\n};\n\n// Format pour PostgreSQL (compatibilité avec le schéma existant)\nconsolidated.tickets_found = consolidated.agent_tickets_found;\nconsolidated.tickets_processed = consolidated.agent_tickets_processed;\nconsolidated.tickets_escalated = consolidated.agent_tickets_escalated;\nconsolidated.actions_detected = [...consolidated.agent_actions];\nif (consolidated.diag_processed.length > 0) {\n  consolidated.actions_detected.push('diag_analysis');\n}\nconsolidated.raw_output = JSON.stringify(consolidated.summary);\n\nreturn [{ json: consolidated }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2464,
+        320
+      ],
+      "id": "ff33c749-ae3d-4919-9275-ce7bfe25bedf",
+      "name": "Consolider Résultats"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "widip_agent_logs"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "execution_id": "={{ $json.execution_id }}",
+            "started_at": "={{ $json.started_at }}",
+            "completed_at": "={{ $json.completed_at }}",
+            "status": "={{ $json.status }}",
+            "tickets_found": "={{ $json.tickets_found }}",
+            "tickets_processed": "={{ JSON.stringify($json.tickets_processed) }}",
+            "tickets_escalated": "={{ JSON.stringify($json.tickets_escalated) }}",
+            "actions_detected": "={{ $json.actions_detected?.join(',') || '' }}",
+            "duration_seconds": "={{ $json.duration_seconds }}",
+            "errors": "={{ JSON.stringify($json.errors) }}",
+            "raw_output": "={{ $json.raw_output }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "a02ecdc4-8e33-41e0-8a0e-621d233272c5",
+      "name": "Log PostgreSQL",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2688,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 🎯 WIDIP Assist Ticket v6.1\n\n### Changements v6 → v6.1\n- ✅ SUPPRESSION DU MUTEX (API Mistral gère la concurrence)\n- ✅ Workflow simplifié et plus rapide\n\n### Changements v4 → v6\n- ✅ Nouvelle branche parallèle: Détection codes #DIAG\n- ✅ Parser format: `#DIAG gw=ok int=fail dns=ok ping=12ms`\n- ✅ Analyse automatique de responsabilité (FAI/Local/Résolu)\n- ✅ Ajout followup GLPI avec résultat analyse\n- ✅ Redis pour éviter retraitement des DIAG\n- ✅ Consolidation des résultats des 2 branches\n\n### Architecture v6.1\n```\nPolling 3min\n    ↓\nInitialiser\n    ↓\nRedis: Check GLPI Health\n    ↓\nIF GLPI OK?\n  ├─ YES → BRANCHE AGENT (tickets classiques)\n  │         │   └─ MDP, déblocage, etc.\n  │         │\n  │         └─ BRANCHE DIAG\n  │             ├─ Chercher followups #DIAG\n  │             ├─ Parser format clé=valeur\n  │             ├─ Analyser responsabilité\n  │             └─ Ajouter followup GLPI\n  │         \n  │         → Merge branches\n  │         → Consolider\n  │         → Log PostgreSQL\n  │\n  └─ NO  → Skip Cycle\n```\n\n### Format DIAG supporté\n```\n#DIAG gw=ok int=fail dns=ok ping=12ms\n```\n\n### Règles de responsabilité\n| gw | int | dns | Responsabilité |\n|----|-----|-----|----------------|\n| ok | fail | * | FAI |\n| ok | ok | fail | FAI (DNS) |\n| fail | * | * | Local/Câblage |\n| ok | ok | ok | Résolu |",
+        "height": 988,
+        "width": 520,
+        "color": 4
+      },
+      "id": "0d1ced1a-6480-401f-acde-0a27dc0bc3bc",
+      "name": "Note v6",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2336,
+        128
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Polling 3min": {
+      "main": [
+        [
+          {
+            "node": "Initialiser Contexte",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initialiser Contexte": {
+      "main": [
+        [
+          {
+            "node": "Redis: Check GLPI Health",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis: Check GLPI Health": {
+      "main": [
+        [
+          {
+            "node": "Analyze GLPI Health",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze GLPI Health": {
+      "main": [
+        [
+          {
+            "node": "IF GLPI OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF GLPI OK?": {
+      "main": [
+        [
+          {
+            "node": "Agent Support WIDIP",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Chercher Followups #DIAG",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip Cycle - GLPI Down",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memory Buffer": {
+      "ai_memory": [
+        [
+          {
+            "node": "Agent Support WIDIP",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama - Qwen 2.5 14B": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agent Support WIDIP",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP Client GLPI": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agent Support WIDIP",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP Client Memory": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agent Support WIDIP",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP Active Directory": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agent Support WIDIP",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP MySecret": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agent Support WIDIP",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agent Support WIDIP": {
+      "main": [
+        [
+          {
+            "node": "Parser Résultats Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Parser Erreur Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser Résultats Agent": {
+      "main": [
+        [
+          {
+            "node": "Tickets traités ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tickets traités ?": {
+      "main": [
+        [
+          {
+            "node": "Préparer Notification Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Inactivité Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Préparer Notification Agent": {
+      "main": [
+        [
+          {
+            "node": "Merge Toutes Branches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Inactivité Agent": {
+      "main": [
+        [
+          {
+            "node": "Merge Toutes Branches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser Erreur Agent": {
+      "main": [
+        [
+          {
+            "node": "Notification Erreur Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notification Erreur Agent": {
+      "main": [
+        [
+          {
+            "node": "Merge Toutes Branches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip Cycle - GLPI Down": {
+      "main": [
+        [
+          {
+            "node": "Merge Toutes Branches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chercher Followups #DIAG": {
+      "main": [
+        [
+          {
+            "node": "DIAG trouvés ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DIAG trouvés ?": {
+      "main": [
+        [
+          {
+            "node": "Redis: DIAG déjà traité ?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Aucun DIAG",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis: DIAG déjà traité ?": {
+      "main": [
+        [
+          {
+            "node": "Pas encore traité ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pas encore traité ?": {
+      "main": [
+        [
+          {
+            "node": "Parser Format DIAG",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "DIAG déjà traité",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser Format DIAG": {
+      "main": [
+        [
+          {
+            "node": "Analyser Responsabilité",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyser Responsabilité": {
+      "main": [
+        [
+          {
+            "node": "Préparer Followup GLPI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Préparer Followup GLPI": {
+      "main": [
+        [
+          {
+            "node": "Envoyer Followup GLPI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Envoyer Followup GLPI": {
+      "main": [
+        [
+          {
+            "node": "Redis: Marquer DIAG traité",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis: Marquer DIAG traité": {
+      "main": [
+        [
+          {
+            "node": "Formatter Résultat DIAG",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatter Résultat DIAG": {
+      "main": [
+        [
+          {
+            "node": "Merge Toutes Branches",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Aucun DIAG": {
+      "main": [
+        [
+          {
+            "node": "Merge Toutes Branches",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "DIAG déjà traité": {
+      "main": [
+        [
+          {
+            "node": "Merge Toutes Branches",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Toutes Branches": {
+      "main": [
+        [
+          {
+            "node": "Consolider Résultats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consolider Résultats": {
+      "main": [
+        [
+          {
+            "node": "Log PostgreSQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "60102454-e38a-4f70-afb7-f9d71d71b39e",
+  "meta": {
+    "instanceId": "2f7feaa62d84455355dbe5623ed2cf399d33e00898464e812f19febe1805a15d"
+  },
+  "id": "JKlFZ6UyMLGdIquP",
+  "tags": [
+    {
+      "updatedAt": "2025-12-02T10:59:31.282Z",
+      "createdAt": "2025-12-02T10:59:31.282Z",
+      "id": "TUivszOF7k1MmcuG",
+      "name": "widip"
+    },
+    {
+      "name": "v6",
+      "id": "ivyGYnascxYxJaJ0",
+      "updatedAt": "2025-12-09T12:41:48.811Z",
+      "createdAt": "2025-12-09T12:41:48.811Z"
+    },
+    {
+      "updatedAt": "2025-12-02T11:04:01.172Z",
+      "createdAt": "2025-12-02T11:04:01.172Z",
+      "id": "tZGgdpJWslBwOYsL",
+      "name": "assist"
+    }
+  ]
+}

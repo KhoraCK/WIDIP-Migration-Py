@@ -1,0 +1,998 @@
+{
+  "name": "WIDIP_Proactif_Observium_v9",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "widip-alertes",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        288,
+        704
+      ],
+      "id": "b49bb9d5-06cc-4f09-aee7-06aceea82f47",
+      "name": "Webhook Alertes Observium",
+      "webhookId": "widip-alertes-optimized"
+    },
+    {
+      "parameters": {
+        "jsCode": "// PHASE 0: Parse et génère un tracking_id unique\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const body = item.json.body || item.json;\n  \n  const trackingId = `ALT-${new Date().getFullYear()}-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;\n  \n  const alertData = {\n    tracking_id: trackingId,\n    device_name: body.device_name || body.hostname || 'unknown',\n    ip_address: body.ip_address || body.ip || 'unknown',\n    alert_type: body.alert_type || body.type || 'ping_down',\n    alert_status: body.status || 'critical',\n    timestamp: body.timestamp || new Date().toISOString(),\n    message: body.message || 'Device is not responding',\n    downtime_minutes: body.downtime_minutes || body.duration_minutes || 0,\n    received_at: new Date().toISOString(),\n    raw_data: body\n  };\n  \n  results.push({ json: alertData });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        512,
+        704
+      ],
+      "id": "dbc43a29-0227-464b-91bf-33b5ffd2153f",
+      "name": "Parse Alerte + Tracking ID"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"accepted\",\n  \"tracking_id\": \"{{ $json.tracking_id }}\",\n  \"device_name\": \"{{ $json.device_name }}\",\n  \"message\": \"Alerte reçue et en cours de traitement asynchrone\",\n  \"estimated_completion\": \"30-45s\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        736,
+        608
+      ],
+      "id": "21ead463-6f37-4883-93bf-95c5bd0016ba",
+      "name": "Réponse Immédiate Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// OPTIMISATION 1: Pre-filter intelligent\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const alert = item.json;\n  let shouldProcess = true;\n  let filterReason = null;\n  \n  // Règle 1: Ignorer micro-coupures < 5 minutes\n  if (alert.downtime_minutes > 0 && alert.downtime_minutes < 5) {\n    shouldProcess = false;\n    filterReason = 'downtime_too_short';\n  }\n  \n  // Règle 3: Fenêtres de maintenance (optionnel)\n  const hour = new Date().getHours();\n  const isMaintenanceWindow = hour >= 2 && hour <= 4;\n  if (isMaintenanceWindow && alert.alert_type !== 'critical') {\n    shouldProcess = false;\n    filterReason = 'maintenance_window';\n  }\n  \n  results.push({\n    json: {\n      ...alert,\n      pre_filter_result: shouldProcess ? 'pass' : 'filtered',\n      filter_reason: filterReason,\n      filtered_at: new Date().toISOString()\n    }\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        736,
+        800
+      ],
+      "id": "d9a43f23-3d8e-40b3-b323-9fd7794a9508",
+      "name": "OPTIM: Pre-Filter + Dedup"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.pre_filter_result }}",
+              "rightValue": "pass",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        960,
+        800
+      ],
+      "id": "7836fc31-c048-41aa-968d-78826c6fb686",
+      "name": "Alerte valide ?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log les alertes filtrées\nconst items = $input.all();\nreturn items.map(item => ({\n  json: {\n    tracking_id: item.json.tracking_id,\n    device_name: item.json.device_name,\n    filter_reason: item.json.filter_reason,\n    filtered_at: item.json.filtered_at,\n    action: 'ignored',\n    message: `Alerte ignorée: ${item.json.filter_reason}`\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        896
+      ],
+      "id": "a83472ab-cc3c-4a20-b6b4-a8911aa336c8",
+      "name": "Log Alerte Filtrée"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Préparer la requête de cache pour Redis Helper v2\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const alert = item.json;\n  const date = new Date().toISOString().split('T')[0];\n  const deviceKey = alert.device_name.replace(/[^a-zA-Z0-9]/g, '_');\n  const cacheKey = `observium_diag_${deviceKey}_${date}`;\n  \n  results.push({\n    json: {\n      ...alert,\n      cache_key: cacheKey,\n      cache_checked_at: new Date().toISOString()\n    }\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        704
+      ],
+      "id": "3771779f-1124-4ce4-adff-7ddbddb2a6f8",
+      "name": "Prepare Cache Key"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aCuwZ3jJb1c2dMVY",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "action": "get",
+            "key": "={{ $json.cache_key }}"
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1408,
+        704
+      ],
+      "id": "1037a8a2-6aa2-4618-b524-a0579489fb8f",
+      "name": "Redis: Check Cache",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Analyser le résultat du cache\nconst items = $input.all();\nconst alertData = $('Prepare Cache Key').first().json;\n\nlet cachedDiagnostic = null;\ntry {\n  const redisResult = items[0].json;\n  if (redisResult.value) {\n    cachedDiagnostic = JSON.parse(redisResult.value);\n  }\n} catch (e) {\n  // Pas de cache ou erreur parsing\n}\n\nreturn [{\n  json: {\n    ...alertData,\n    cache_hit: cachedDiagnostic !== null,\n    cached_diagnostic: cachedDiagnostic\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        704
+      ],
+      "id": "bbdbc25a-e0fa-4702-928a-b9099ad8a0f3",
+      "name": "Analyze Cache Result"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.cache_hit }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1856,
+        704
+      ],
+      "id": "f5dcb6bf-1066-4772-b9df-67c390ab35ca",
+      "name": "Cache Hit ?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ✅ BON CODE (version corrigée)\nconst cached = item.json.cached_diagnostic;\nconst diagnosticData = cached.diagnostic || cached;\n\nreturn {\n  json: {\n    ...diagnosticData,  // Spread le bon objet\n    cache_reused: true,\n    cache_reused_at: new Date().toISOString(),\n    original_tracking_id: item.json.tracking_id\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        592
+      ],
+      "id": "0a1d98ee-1c30-4761-8174-d8abb0ca3190",
+      "name": "Utiliser Cache"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aCuwZ3jJb1c2dMVY",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "key": "glpi_health_status",
+            "action": "get"
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        2080,
+        832
+      ],
+      "id": "f3469fcb-a375-4950-8b2f-5618e1565285",
+      "name": "Redis: Check GLPI Health",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Analyser le statut GLPI\nconst items = $input.all();\nconst alertData = $('Analyze Cache Result').first().json;\n\nlet glpiStatus = 'ok';\ntry {\n  const redisResult = items[0].json;\n  glpiStatus = redisResult.value || 'ok';\n} catch (e) {\n  glpiStatus = 'ok'; // Par défaut OK si erreur\n}\n\nreturn [{\n  json: {\n    ...alertData,\n    glpi_status: glpiStatus,\n    glpi_available: glpiStatus === 'ok'\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2304,
+        832
+      ],
+      "id": "b87038af-229a-49fe-a2a1-5573a8f74ca7",
+      "name": "Analyze GLPI Health"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "61ed0e01-37ab-40f7-9491-b0640fb6d1a7",
+              "leftValue": "={{ $json.glpi_available }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2528,
+        832
+      ],
+      "id": "fdf3ae2b-2d04-4241-84ef-a8dcf5b6c5d5",
+      "name": "IF GLPI OK?"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(item => ({\n  json: {\n    ...item.json,\n    degraded_mode: true,\n    degraded_reason: 'GLPI unavailable'\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2752,
+        928
+      ],
+      "id": "008b7ff0-7279-417c-b0e3-b70253f68f34",
+      "name": "Mode Dégradé"
+    },
+    {
+      "parameters": {
+        "endpointUrl": "http://localhost:3001/mcp/sse",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.2,
+      "position": [
+        3104,
+        960
+      ],
+      "id": "914b1b4e-cdc5-4095-9ecf-6e2dfa2ffb30",
+      "name": "MCP Client - Observium",
+      "webhookId": "mcp-observium-local"
+    },
+    {
+      "parameters": {
+        "endpointUrl": "http://localhost:3001/mcp/sse",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.2,
+      "position": [
+        3168,
+        1100
+      ],
+      "id": "mcp-client-memory-sentinel",
+      "name": "MCP Client - Memory"
+    },
+    {
+      "parameters": {
+        "endpointUrl": "http://localhost:3001/mcp/sse",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.2,
+      "position": [
+        3232,
+        960
+      ],
+      "id": "3924fe60-c41f-4131-b632-82ee4ab70fda",
+      "name": "MCP Client - GLPI",
+      "webhookId": "mcp-glpi-local"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=# DIAGNOSTIC RÉSEAU v9 - ANALYSE OBSERVIUM SEULE\n\n## CONTEXTE ALERTE\nTracking ID: {{ $json.tracking_id }}\nDevice: {{ $json.device_name }}\nIP: {{ $json.ip_address }}\nType: {{ $json.alert_type }}\nStatut: {{ $json.alert_status }}\nMessage: {{ $json.message }}\nTimestamp: {{ $json.timestamp }}\nDurée DOWN: {{ $json.downtime_minutes }} minutes\n\n## TES OUTILS DISPONIBLES\n\n### MCP Observium\n- observium_get_device_status(device_name, ip_address) → État global, uptime, localisation, OS\n- observium_get_device_metrics(device_name, ip_address) → Ports, trafic, processeur, mémoire\n- observium_get_device_alerts(device_name) → Alertes actives\n- observium_get_device_history(device_name, hours) → Historique des graphes (si disponible)\n\n### MCP Memory (Base de Connaissance)\n- memory_search_similar_cases(symptom) → Trouve des tickets passés similaires (Ex: 'Switch HP port 24 down')\n\n### MCP GLPIMemory (Base de Connaissance)\n- memory_search_similar_cases(symptom) → Trouve des tickets passés similaires (Ex: \"Switch HP port 24 down\")\n\n### MCP GLPI\n- glpi_search_client(name) → Trouver client, récupérer infos contact\n\n## NOUVELLE PROCÉDURE v9 (SANS PHIBEE)\n\nÉTAPE 1 - Identifier client:\n→ glpi_search_client(device_name) pour obtenir client_id et infos\n\nÉTAPE 2 - Consulter la Mémoire (RAG):\n→ memory_search_similar_cases(\"device_type failure_type\") pour voir si c'est un problème récurrent\n\nÉTAPE 3 - Analyse Observium complète: (RAG):\n→ memory_search_similar_cases(\"device_type failure_type\") pour voir si c'est un problème récurrent\n\nÉTAPE 3 - Analyse Observium complète:\n→ observium_get_device_status(device_name, ip_address) → État général du device\n→ observium_get_device_metrics(device_name, ip_address) → Voir si plusieurs ports down\n→ observium_get_device_history(device_name, 24) → Historique récent\n\nÉTAPE 3 - DÉDUCTION DE LA RESPONSABILITÉ:\n\nTu dois analyser et déterminer la PROBABILITÉ de responsabilité:\n\n**RÈGLES DE DÉDUCTION:**\n\n1. Si le device est un équipement WIDIP (switch managé, serveur WIDIP):\n   → responsibility: \"widip\"\n   → confidence: 90-100\n   \n2. Si TOUT le site client est DOWN (tous les devices du client):\n   → responsibility: \"fai_probable\" \n   → confidence: 70-80\n   → besoin_diagnostic_client: true\n   \n3. Si UN SEUL port down sur device client:\n   → responsibility: \"local_probable\"\n   → confidence: 50-60\n   → besoin_diagnostic_client: true\n   \n4. Si PLUSIEURS ports down sur même device client:\n   → responsibility: \"fai_probable\"\n   → confidence: 65-75\n   → besoin_diagnostic_client: true\n\n5. Si données insuffisantes:\n   → responsibility: \"indetermine\"\n   → confidence: 30-40\n   → besoin_diagnostic_client: true\n\n## OUTPUT ATTENDU (JSON EXACT)\n\n```json\n{\n  \"diagnostic_success\": true,\n  \"tracking_id\": \"{{ $json.tracking_id }}\",\n  \"device_name\": \"nom_device\",\n  \"ip_address\": \"x.x.x.x\",\n  \"alert_type\": \"type\",\n  \"device_status\": \"down\",\n  \"client_found\": true,\n  \"client_id\": \"CLI-XXX\",\n  \"client_name\": \"Nom Client\",\n  \"client_email\": \"contact@client.fr\",\n  \"responsibility\": \"widip|fai_probable|local_probable|indetermine\",\n  \"responsibility_label\": \"Description claire en français\",\n  \"confidence\": 0-100,\n  \"besoin_diagnostic_client\": true|false,\n  \"diagnosis\": \"Explication technique détaillée du problème\",\n  \"reasoning\": \"Pourquoi tu as déterminé cette responsabilité\",\n  \"severity\": \"critical|high|medium|low\",\n  \"recommended_action\": \"Action recommandée\",\n  \"observium_data\": {\n    \"device_type\": \"type\",\n    \"uptime_before_incident\": \"info\",\n    \"ports_affected\": 0,\n    \"total_ports\": 0,\n    \"recent_incidents_24h\": 0\n  },\n  \"diagnostic_duration_ms\": 0,\n  \"tools_used\": [\"glpi_search_client\", \"observium_get_device_status\"],\n  \"notes\": \"Informations additionnelles\"\n}\n```\n\n## IMPORTANT\n- Sois HONNÊTE sur ton niveau de confidence\n- Si confidence < 80%, toujours mettre besoin_diagnostic_client: true\n- Explique clairement ton raisonnement dans \"reasoning\"\n- Base-toi sur les DONNÉES Observium, pas sur des suppositions\n\nCOMMENCE LE DIAGNOSTIC MAINTENANT.",
+        "options": {
+          "systemMessage": "Tu es SENTINEL v9, l'agent IA de diagnostic réseau de WIDIP.\n\n## CHANGEMENT MAJEUR v9\nTu n'as PLUS accès à l'API Phibee Telecom. Tu dois analyser avec Observium SEUL et déterminer une PROBABILITÉ de responsabilité.\n\n## IDENTITÉ\n- Expert en analyse d'incidents réseau\n- Infrastructure médico-sociale (EHPAD, cliniques)\n- Méthodique, honnête sur tes limites\n- Tu admets quand tu as besoin d'aide du client\n\n## MISSION\nAnalyser les alertes réseau et déterminer la PROBABILITÉ de responsabilité entre:\n- WIDIP (nos équipements)\n- FAI (Phibee ou autre)\n- Client (équipement local, câble, etc.)\n\n## RESPONSABILITÉS POSSIBLES\n- widip: Équipement WIDIP défaillant (haute confiance possible)\n- fai_probable: Probablement le FAI (confiance moyenne)\n- local_probable: Probablement équipement client (confiance moyenne)\n- indetermine: Impossible à déterminer sans plus d'infos\n\n## RÈGLES ABSOLUES\n1. TOUJOURS appeler glpi_search_client EN PREMIER\n2. TOUJOURS analyser les données Observium disponibles\n3. Être HONNÊTE sur ton niveau de confidence (0-100)\n4. Si confidence < 80% → besoin_diagnostic_client: true\n5. TERMINER par un JSON valide unique\n6. NE JAMAIS inventer des données\n\n## QUAND DEMANDER L'OUTIL DIAGNOSTIC CLIENT\n- Confidence < 80%\n- Probable FAI mais pas certain\n- Données Observium insuffisantes\n- Besoin de tests depuis le site client\n\nLICENCE: Apache 2.0",
+          "maxIterations": 8
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        3040,
+        736
+      ],
+      "id": "6110b9ac-d6ed-47bc-a485-f06341c6b047",
+      "name": "Agent_Sentinel_v9"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format Diagnostic + Métriques v9\nconst items = $input.all();\nconst results = [];\nconst alertData = $('Parse Alerte + Tracking ID').first().json;\nconst startTime = new Date(alertData.received_at).getTime();\n\nfor (const item of items) {\n  const agentOutput = item.json.output || item.json.text || '{}';\n  const diagnosticEndTime = Date.now();\n  \n  let diagnostic;\n  try {\n    const jsonMatch = agentOutput.match(/\\{[\\s\\S]*\\}/);\n    diagnostic = jsonMatch ? JSON.parse(jsonMatch[0]) : {};\n  } catch (e) {\n    diagnostic = { diagnostic_success: false, parse_error: true };\n  }\n  \n  const enrichedDiagnostic = {\n    original_alert: alertData,\n    diagnostic_success: diagnostic.diagnostic_success !== false,\n    tracking_id: diagnostic.tracking_id || alertData.tracking_id,\n    device_name: diagnostic.device_name || alertData.device_name,\n    ip_address: diagnostic.ip_address || alertData.ip_address,\n    alert_type: diagnostic.alert_type || alertData.alert_type,\n    device_status: diagnostic.device_status || 'unknown',\n    client_found: diagnostic.client_found || false,\n    client_id: diagnostic.client_id || null,\n    client_name: diagnostic.client_name || 'Non identifié',\n    client_email: diagnostic.client_email || null,\n    responsibility: diagnostic.responsibility || 'indetermine',\n    responsibility_label: diagnostic.responsibility_label || 'Responsabilité non déterminée',\n    confidence: diagnostic.confidence || 0,\n    besoin_diagnostic_client: diagnostic.besoin_diagnostic_client || false,\n    diagnosis: diagnostic.diagnosis || 'Diagnostic non disponible',\n    reasoning: diagnostic.reasoning || 'Pas de raisonnement fourni',\n    severity: diagnostic.severity || 'high',\n    recommended_action: diagnostic.recommended_action || 'Investigation manuelle requise',\n    observium_data: diagnostic.observium_data || {},\n    metrics: {\n      sentinel_duration_ms: diagnosticEndTime - startTime,\n      sentinel_timeout: (diagnosticEndTime - startTime) > 20000,\n      tools_used: diagnostic.tools_used || [],\n      cache_used: false,\n      pre_filter_passed: true\n    },\n    sentinel_completed_at: new Date().toISOString(),\n    workflow_version: 'v9',\n    cache_key: $('Prepare Cache Key').first().json.cache_key\n  };\n  \n  results.push({ json: enrichedDiagnostic });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3664,
+        736
+      ],
+      "id": "c951aefb-60a2-4947-a014-498ec28da2fe",
+      "name": "Format Diagnostic + Métriques"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aCuwZ3jJb1c2dMVY",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "action": "set",
+            "key": "={{ $json.cache_key }}",
+            "value": "={{ JSON.stringify({ diagnostic: $json, device_name: $json.device_name, cached_at: new Date().toISOString() }) }}",
+            "ttl": 1200
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        3888,
+        736
+      ],
+      "id": "4c02dc1d-89f7-4939-a4ae-9d119ae797ab",
+      "name": "Redis: Save Cache",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.besoin_diagnostic_client }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            },
+            {
+              "leftValue": "={{ $json.confidence }}",
+              "rightValue": 80,
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4112,
+        592
+      ],
+      "id": "fd69c1b2-8bed-46ab-9604-7fdfddd1ddd4",
+      "name": "Besoin Outil Client ?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Préparer l'email de demande de diagnostic client\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const diag = item.json;\n  \n  const emailBody = `\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n    .header { background: #d32f2f; color: white; padding: 20px; text-align: center; }\n    .content { padding: 20px; }\n    .box { background: #f5f5f5; border-left: 4px solid #d32f2f; padding: 15px; margin: 15px 0; }\n    .step { background: white; border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px; }\n    .step-number { background: #d32f2f; color: white; width: 30px; height: 30px; border-radius: 50%; display: inline-block; text-align: center; line-height: 30px; font-weight: bold; margin-right: 10px; }\n    .button { background: #d32f2f; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0; }\n    .footer { background: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #666; }\n  </style>\n</head>\n<body>\n  <div class=\"header\">\n    <h1>🔴 Panne Réseau Détectée</h1>\n    <p>Établissement: ${diag.client_name || 'Votre établissement'}</p>\n  </div>\n  \n  <div class=\"content\">\n    <p>Bonjour,</p>\n    \n    <p>Une panne réseau a été détectée sur votre site. Nos systèmes automatisés analysent déjà la situation.</p>\n    \n    <div class=\"box\">\n      <strong>📊 Diagnostic Initial :</strong><br>\n      • Équipement concerné : ${diag.device_name}<br>\n      • Adresse IP : ${diag.ip_address}<br>\n      • Type d'alerte : ${diag.alert_type}<br>\n      • Responsable probable : ${diag.responsibility_label}<br>\n      • Niveau de confiance : ${diag.confidence}%\n    </div>\n    \n    <h2 style=\"color: #d32f2f;\">⚡ ACCÉLÉREZ LA RÉSOLUTION (2 minutes)</h2>\n    \n    <p><strong>Pour identifier rapidement la cause exacte et démarrer l'intervention immédiatement, merci de suivre ces 3 étapes simples :</strong></p>\n    \n    <div class=\"step\">\n      <span class=\"step-number\">1</span>\n      <strong>Redémarrez votre box internet</strong><br>\n      → Appuyez sur le bouton power de votre box<br>\n      → Attendez <strong>2 minutes complètes</strong> qu'elle redémarre\n    </div>\n    \n    <div class=\"step\">\n      <span class=\"step-number\">2</span>\n      <strong>Téléchargez notre outil de diagnostic</strong><br>\n      <a href=\"https://diagnostic.widip.fr/DiagnosticWIDIP.exe\" class=\"button\">📥 Télécharger DiagnosticWIDIP.exe</a><br>\n      <small style=\"color: #666;\">Fichier léger (< 1 Mo), aucune installation requise</small>\n    </div>\n    \n    <div class=\"step\">\n      <span class=\"step-number\">3</span>\n      <strong>Exécutez l'outil et copiez le code</strong><br>\n      → Double-cliquez sur le fichier téléchargé<br>\n      → L'outil affichera un code : <code style=\"background: #f5f5f5; padding: 2px 6px;\">DIAG-XXXXX</code><br>\n      → Copiez ce code\n    </div>\n    \n    <div class=\"box\">\n      <strong>🎯 Où ajouter le code ?</strong><br>\n      1. Connectez-vous sur <a href=\"https://mywidip.fr\">mywidip.fr</a><br>\n      2. Ouvrez votre ticket (vous devriez avoir reçu un email)<br>\n      3. Cliquez sur \"Ajouter un suivi\"<br>\n      4. Collez le code DIAG-XXXXX dans le message\n    </div>\n    \n    <h3>✅ Avec ce diagnostic, nous pourrons :</h3>\n    <ul>\n      <li>Identifier le responsable (WIDIP ou FAI) en <strong>5 minutes</strong></li>\n      <li>Démarrer l'intervention <strong>immédiatement</strong></li>\n      <li>Résoudre le problème <strong>3x plus rapidement</strong></li>\n      <li>Vous tenir informé en temps réel</li>\n    </ul>\n    \n    <div class=\"box\">\n      <strong>⏱️ Nous intervenons déjà :</strong><br>\n      ${diag.diagnosis}<br><br>\n      <strong>Action recommandée :</strong> ${diag.recommended_action}\n    </div>\n    \n    <p><strong>❓ Besoin d'aide ?</strong> Répondez à cet email ou appelez notre support technique.</p>\n    \n    <p>Cordialement,<br><strong>WIDIP - Support Automatisé</strong></p>\n  </div>\n  \n  <div class=\"footer\">\n    Ticket ID: ${diag.tracking_id}<br>\n    Cet email a été généré automatiquement par nos systèmes de surveillance.<br>\n    © ${new Date().getFullYear()} WIDIP - Tous droits réservés\n  </div>\n</body>\n</html>\n  `;\n  \n  results.push({\n    json: {\n      ...diag,\n      email_subject: `🔴 Panne réseau détectée - ${diag.client_name} - Action requise`,\n      email_body: emailBody,\n      email_recipient: diag.client_email || 'support@widip.fr',\n      email_prepared: true\n    }\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4320,
+        496
+      ],
+      "id": "45ff6b0a-43a7-4029-b642-b571264ba7e0",
+      "name": "Préparer Email Outil"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        4560,
+        608
+      ],
+      "id": "a415155d-c640-40cb-bfe9-d105c7a9a6e3",
+      "name": "Merge Diagnostic Paths"
+    },
+    {
+      "parameters": {
+        "endpointUrl": "http://localhost:3001/mcp/sse",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.2,
+      "position": [
+        5200,
+        832
+      ],
+      "id": "1e597231-b27b-4bfa-8ccf-1b394a302222",
+      "name": "MCP Client - GLPI Actions",
+      "webhookId": "mcp-glpi-actions-local"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=# ACTIONS SUITE AU DIAGNOSTIC v9\n\n## DIAGNOSTIC REÇU\nTracking ID: {{ $json.tracking_id }}\nDevice: {{ $json.device_name }}\nClient: {{ $json.client_name }} ({{ $json.client_id }})\nEmail client: {{ $json.client_email }}\n\nResponsabilité: {{ $json.responsibility }}\nConfiance: {{ $json.confidence }}%\nBesoin outil client: {{ $json.besoin_diagnostic_client }}\n\nSévérité: {{ $json.severity }}\nDiagnostic: {{ $json.diagnosis }}\nRaisonnement: {{ $json.reasoning }}\n\n{{ if $json.email_prepared }}\n## EMAIL PRÉPARÉ POUR LE CLIENT\nUn email demandant d'utiliser l'outil diagnostic a été préparé.\nTu dois l'envoyer via GLPI après avoir créé le ticket.\n\nSubject: {{ $json.email_subject }}\nBody: [HTML préparé]\nRecipient: {{ $json.email_recipient }}\n{{ endif }}\n\n## TES ACTIONS\n\n1. CRÉER TICKET GLPI:\n   - Titre adapté selon responsabilité\n   - Description complète avec diagnostic\n   - Urgence selon severity\n   - Catégorie: réseau\n\n2. SI email_prepared == true:\n   - Envoyer l'email préparé via glpi_send_email()\n   - Attacher le ticket_id\n\n3. SI email_prepared == false ET confidence >= 80:\n   - Envoyer email standard \"Nous intervenons\"\n\n## OUTPUT JSON ATTENDU\n\n```json\n{\n  \"success\": true,\n  \"tracking_id\": \"...\",\n  \"device_name\": \"...\",\n  \"client_name\": \"...\",\n  \"client_email\": \"...\",\n  \"ticket\": {\n    \"created\": true,\n    \"id\": \"12345\",\n    \"title\": \"...\",\n    \"status\": \"new\"\n  },\n  \"notifications\": {\n    \"client_emailed\": true,\n    \"team_notified\": false,\n    \"email_type\": \"diagnostic_tool_request|standard_intervention\"\n  },\n  \"actions_taken\": [\n    \"ticket_created\",\n    \"email_sent\"\n  ],\n  \"summary\": \"Ticket créé et client notifié avec demande d'outil diagnostic\",\n  \"actions_duration_ms\": 0\n}\n```\n\nExécute les actions maintenant.",
+        "options": {
+          "systemMessage": "Tu es NOTIFICATEUR v9, l'agent IA d'actions de WIDIP.\n\n## CHANGEMENTS v9\n- Tu gères maintenant les demandes d'outil diagnostic client\n- Les emails sont envoyés via GLPI (opération glpi_send_email)\n- Tu adaptes tes messages selon le niveau de confiance du diagnostic\n\n## MISSION\nCréer des tickets GLPI et envoyer des notifications adaptées selon:\n1. La responsabilité détectée\n2. Le niveau de confiance\n3. Si l'outil diagnostic client est requis\n\n## RÈGLES\n1. TOUJOURS créer un ticket GLPI en premier\n2. Si email_prepared existe → l'envoyer tel quel\n3. Sinon créer un email standard adapté\n4. Utiliser glpi_send_email() du MCP GLPI (pas de MCP SMTP)\n5. Retourner JSON structuré avec toutes les actions\n\n## TYPES D'EMAILS\n- diagnostic_tool_request: Email avec demande d'utiliser l'outil\n- standard_intervention: Email \"Nous intervenons\"\n- widip_fault: Email \"Panne de notre côté, résolution en cours\"\n\nLICENCE: Apache 2.0",
+          "maxIterations": 8
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        5008,
+        608
+      ],
+      "id": "7722cd55-d4e9-4564-b41a-1b332919f55c",
+      "name": "Agent_Notificateur_v9"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validation finale + Métriques complètes v9\nconst items = $input.all();\nconst results = [];\nconst diagnostic = $('Format Diagnostic + Métriques').first().json;\nconst alertData = $('Parse Alerte + Tracking ID').first().json;\nconst workflowStartTime = new Date(alertData.received_at).getTime();\n\nfor (const item of items) {\n  const agentOutput = item.json.output || item.json.text || '{}';\n  const workflowEndTime = Date.now();\n  \n  let response;\n  try {\n    const jsonMatch = agentOutput.match(/\\{[\\s\\S]*\\}/);\n    response = jsonMatch ? JSON.parse(jsonMatch[0]) : {};\n  } catch (e) {\n    response = { success: false, parse_error: true };\n  }\n  \n  const finalResponse = {\n    success: response.success !== false && diagnostic.diagnostic_success,\n    tracking_id: diagnostic.tracking_id,\n    device_name: response.device_name || diagnostic.device_name,\n    ip_address: response.ip_address || diagnostic.ip_address,\n    alert_type: diagnostic.alert_type,\n    client_name: response.client_name || diagnostic.client_name,\n    client_email: response.client_email || diagnostic.client_email,\n    client_id: diagnostic.client_id,\n    responsibility: diagnostic.responsibility,\n    responsibility_label: diagnostic.responsibility_label,\n    confidence: diagnostic.confidence,\n    besoin_diagnostic_client: diagnostic.besoin_diagnostic_client,\n    diagnosis: diagnostic.diagnosis,\n    severity: diagnostic.severity,\n    ticket: response.ticket || {created: false, id: null},\n    notifications: response.notifications || {},\n    actions_taken: response.actions_taken || [],\n    summary: response.summary || 'Traitement terminé',\n    metrics: {\n      workflow_total_duration_ms: workflowEndTime - workflowStartTime,\n      sentinel_duration_ms: diagnostic.metrics.sentinel_duration_ms,\n      notificateur_duration_ms: response.actions_duration_ms || 0,\n      cache_used: diagnostic.metrics.cache_used,\n      performance_target_met: (workflowEndTime - workflowStartTime) < 60000\n    },\n    workflow_version: 'v9',\n    workflow_completed_at: new Date().toISOString()\n  };\n  \n  results.push({ json: finalResponse });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5584,
+        608
+      ],
+      "id": "a774fe64-7d0f-4c20-bc4c-9146a55768cb",
+      "name": "Valider Réponse Finale + Métriques"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.success }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        5808,
+        608
+      ],
+      "id": "1f3e92fd-7782-4e8f-8f69-1ee6f99d9fc0",
+      "name": "Workflow Réussi ?"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO incident_logs (\n  tracking_id, device_name, ip_address, alert_type, client_name, client_id,\n  responsibility, confidence, besoin_diagnostic_client, severity, ticket_id, \n  actions_taken, success, workflow_duration_ms, sentinel_duration_ms, \n  notificateur_duration_ms, performance_target_met, cache_used, \n  workflow_version, agent_response, created_at\n) VALUES (\n  '{{ $json.tracking_id }}',\n  '{{ $json.device_name || \"unknown\" }}',\n  '{{ $json.ip_address || \"unknown\" }}',\n  '{{ $json.alert_type || \"unknown\" }}',\n  '{{ $json.client_name || \"unknown\" }}',\n  '{{ $json.client_id || \"\" }}',\n  '{{ $json.responsibility || \"unknown\" }}',\n  {{ $json.confidence || 0 }},\n  {{ $json.besoin_diagnostic_client || false }},\n  '{{ $json.severity || \"unknown\" }}',\n  '{{ $json.ticket.id || \"\" }}',\n  '{{ JSON.stringify($json.actions_taken || []) }}',\n  {{ $json.success || false }},\n  {{ $json.metrics.workflow_total_duration_ms || 0 }},\n  {{ $json.metrics.sentinel_duration_ms || 0 }},\n  {{ $json.metrics.notificateur_duration_ms || 0 }},\n  {{ $json.metrics.performance_target_met || false }},\n  {{ $json.metrics.cache_used || false }},\n  '{{ $json.workflow_version }}',\n  '{{ JSON.stringify($json).replace(/'/g, \"''\") }}',\n  NOW()\n);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        6032,
+        416
+      ],
+      "id": "1b19fbfc-f5c8-470d-8137-41c506391a5e",
+      "name": "Log Database + Métriques"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log succès v9\nconst items = $input.all();\nreturn items.map(item => ({\n  json: {\n    tracking_id: item.json.tracking_id,\n    device_name: item.json.device_name,\n    responsibility: item.json.responsibility,\n    confidence: item.json.confidence,\n    diagnostic_client_requested: item.json.besoin_diagnostic_client,\n    ticket_id: item.json.ticket?.id || null,\n    duration_ms: item.json.metrics.workflow_total_duration_ms,\n    performance_ok: item.json.metrics.performance_target_met,\n    workflow_status: 'success',\n    workflow_version: 'v9',\n    logged_at: new Date().toISOString()\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6032,
+        608
+      ],
+      "id": "b48febfd-cb90-40f9-9508-553c7e5af919",
+      "name": "Log Succès"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Notification erreur v9\nconst items = $input.all();\nconst alertData = $('Parse Alerte + Tracking ID').first().json;\n\nreturn [{\n  json: {\n    error_occurred: true,\n    tracking_id: alertData.tracking_id,\n    device_name: alertData.device_name,\n    notification_subject: `[ERREUR WORKFLOW v9] ${alertData.device_name}`,\n    workflow_version: 'v9',\n    error_logged_at: new Date().toISOString()\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6032,
+        800
+      ],
+      "id": "559ffa32-10f1-45d1-a952-9f3f4c756f05",
+      "name": "Préparer Notification Erreur"
+    },
+    {
+      "parameters": {
+        "content": "## 🚀 WIDIP Proactif Observium v9.1\n\n### Changements v9 → v9.1\n- ✅ SUPPRESSION DU MUTEX (API Mistral gère la concurrence)\n- ✅ Workflow plus rapide et simplifié\n- ✅ Plus de locks Sentinel/Notificateur\n\n### Changements v8 → v9\n\n#### ❌ RETRAITS\n- MCP Phibee Telecom (pas d'API)\n- MCP SMTP (remplacé par GLPI send_email)\n\n#### ✨ NOUVEAUTÉS\n- Agent Sentinel v9: Analyse avec Observium SEUL\n- Système de confiance (0-100%)\n- Détection besoin outil diagnostic client\n- Email automatique avec instructions outil\n- Routage intelligent selon confiance\n\n#### 🎯 LOGIQUE v9.1\n1. Sentinel analyse avec Observium (SANS mutex)\n2. Détermine probabilité responsabilité\n3. Si confiance < 80% → Email outil client\n4. Si confiance >= 80% → Email standard\n5. Notificateur crée ticket + envoie email (SANS mutex)\n\n### Métriques cibles v9.1\n- Diagnostic Sentinel: < 20s\n- Actions Notificateur: < 15s  \n- Total workflow: < 60s\n- Parallélisme: ILLIMITÉ (API gère)",
+        "height": 480,
+        "width": 400,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        0,
+        0
+      ],
+      "typeVersion": 1,
+      "id": "b6e6c16a-ab88-476c-a8dd-f87a503e3ec6",
+      "name": "Note v9"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        4944,
+        832
+      ],
+      "id": "c6325f63-cf6f-4741-b7be-0e435b757f6f",
+      "name": "Ollama - Notificateur (Timeout 15s) Q3C30b",
+      "credentials": {
+        "ollamaApi": {
+          "id": "ApAHu4BBgvL9qEdg",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        2976,
+        960
+      ],
+      "id": "293a2028-d396-43de-932c-6cfc9db3c3f2",
+      "name": "Ollama - Sentinel (Timeout 20s)Q3C30b",
+      "credentials": {
+        "ollamaApi": {
+          "id": "ApAHu4BBgvL9qEdg",
+          "name": "Ollama account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook Alertes Observium": {
+      "main": [
+        [
+          {
+            "node": "Parse Alerte + Tracking ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Alerte + Tracking ID": {
+      "main": [
+        [
+          {
+            "node": "Réponse Immédiate Webhook",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "OPTIM: Pre-Filter + Dedup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OPTIM: Pre-Filter + Dedup": {
+      "main": [
+        [
+          {
+            "node": "Alerte valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alerte valide ?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Cache Key",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Alerte Filtrée",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Cache Key": {
+      "main": [
+        [
+          {
+            "node": "Redis: Check Cache",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis: Check Cache": {
+      "main": [
+        [
+          {
+            "node": "Analyze Cache Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Cache Result": {
+      "main": [
+        [
+          {
+            "node": "Cache Hit ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cache Hit ?": {
+      "main": [
+        [
+          {
+            "node": "Utiliser Cache",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Redis: Check GLPI Health",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Utiliser Cache": {
+      "main": [
+        [
+          {
+            "node": "Besoin Outil Client ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis: Check GLPI Health": {
+      "main": [
+        [
+          {
+            "node": "Analyze GLPI Health",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze GLPI Health": {
+      "main": [
+        [
+          {
+            "node": "IF GLPI OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF GLPI OK?": {
+      "main": [
+        [
+          {
+            "node": "Agent_Sentinel_v9",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mode Dégradé",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP Client - Observium": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agent_Sentinel_v9",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP Client - Memory": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agent_Sentinel_v9",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP Client - GLPI": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agent_Sentinel_v9",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agent_Sentinel_v9": {
+      "main": [
+        [
+          {
+            "node": "Format Diagnostic + Métriques",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Diagnostic + Métriques": {
+      "main": [
+        [
+          {
+            "node": "Redis: Save Cache",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis: Save Cache": {
+      "main": [
+        [
+          {
+            "node": "Besoin Outil Client ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Besoin Outil Client ?": {
+      "main": [
+        [
+          {
+            "node": "Préparer Email Outil",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge Diagnostic Paths",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Préparer Email Outil": {
+      "main": [
+        [
+          {
+            "node": "Merge Diagnostic Paths",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Diagnostic Paths": {
+      "main": [
+        [
+          {
+            "node": "Agent_Notificateur_v9",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP Client - GLPI Actions": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agent_Notificateur_v9",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agent_Notificateur_v9": {
+      "main": [
+        [
+          {
+            "node": "Valider Réponse Finale + Métriques",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valider Réponse Finale + Métriques": {
+      "main": [
+        [
+          {
+            "node": "Workflow Réussi ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow Réussi ?": {
+      "main": [
+        [
+          {
+            "node": "Log Database + Métriques",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Succès",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Préparer Notification Erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama - Notificateur (Timeout 15s) Q3C30b": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agent_Notificateur_v9",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama - Sentinel (Timeout 20s)Q3C30b": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agent_Sentinel_v9",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "f7884ff4-e09b-4e11-b64e-0cf3859bcbaa",
+  "meta": {
+    "instanceId": "2f7feaa62d84455355dbe5623ed2cf399d33e00898464e812f19febe1805a15d"
+  },
+  "id": "FvooGzIxbHh7PJxY",
+  "tags": [
+    {
+      "updatedAt": "2025-12-02T10:59:31.295Z",
+      "createdAt": "2025-12-02T10:59:31.295Z",
+      "id": "FbTtCFJazGPHIcG1",
+      "name": "proactif"
+    },
+    {
+      "name": "v9",
+      "id": "M87BTxaRjeOLCIxU",
+      "updatedAt": "2025-12-09T10:36:15.881Z",
+      "createdAt": "2025-12-09T10:36:15.881Z"
+    },
+    {
+      "updatedAt": "2025-12-02T10:59:31.282Z",
+      "createdAt": "2025-12-02T10:59:31.282Z",
+      "id": "TUivszOF7k1MmcuG",
+      "name": "widip"
+    }
+  ]
+}

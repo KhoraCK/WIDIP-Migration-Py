@@ -1,0 +1,632 @@
+{
+  "name": "WIDIP_Health_Check_GLPI_v2",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "seconds"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        304,
+        208
+      ],
+      "id": "4a823b9e-15d9-4a47-9349-4cfcd8e08623",
+      "name": "Check Every 30s"
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.GLPI_API_URL || 'http://localhost:8670' }}/apirest.php/initSession",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpMultipleHeadersAuth",
+        "options": {
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          },
+          "timeout": 5000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        544,
+        208
+      ],
+      "id": "0a9319ce-e602-42d3-8257-6856099896ea",
+      "name": "Ping GLPI API",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "nkNCOc99RoHFboVh",
+          "name": "WIDIP Phibee"
+        },
+        "httpCustomAuth": {
+          "id": "s84PYl6tvnqffBWv",
+          "name": "WIDIP GLPI"
+        },
+        "httpMultipleHeadersAuth": {
+          "id": "r1Xh9AhgHiA9QViN",
+          "name": "WIDIP GLPI"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Analyse Health Check GLPI\nconst input = $input.first();\nconst checkTime = new Date().toISOString();\n\nlet status = 'down';\nlet error = null;\nlet details = {};\n\nif (input.json && !input.json.error && input.json.session_token) {\n  status = 'ok';\n  details = { session_token: 'present', response_type: 'valid_session' };\n} else if (input.json && input.json.statusCode) {\n  const statusCode = input.json.statusCode;\n  if (statusCode >= 200 && statusCode < 300) {\n    status = 'ok';\n  } else if (statusCode >= 500) {\n    status = 'down';\n    error = `Server error: ${statusCode}`;\n  } else if (statusCode === 401 || statusCode === 403) {\n    status = 'degraded';\n    error = `Auth error: ${statusCode}`;\n  } else {\n    status = 'degraded';\n    error = `HTTP ${statusCode}`;\n  }\n  details = { statusCode };\n} else if (input.json && input.json.error) {\n  status = 'down';\n  error = input.json.error.message || 'Connection failed';\n  details = { error: input.json.error };\n} else {\n  status = 'ok';\n  details = { response: 'unexpected_format_but_reachable' };\n}\n\nreturn [{ json: {\n  status,\n  checked_at: checkTime,\n  error,\n  details,\n  redis_value: status,\n  redis_key: 'glpi_health_status'\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        784,
+        208
+      ],
+      "id": "dbf36d91-eeba-49f8-86ac-4fb6fc1b32da",
+      "name": "Analyze Health Response"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aCuwZ3jJb1c2dMVY",
+          "mode": "id",
+          "cachedResultUrl": "/workflow/aCuwZ3jJb1c2dMVY"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "action": "set",
+            "key": "={{ $json.redis_key }}",
+            "value": "={{ $json.redis_value }}",
+            "ttl": 60
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1024,
+        208
+      ],
+      "id": "f67f8d02-cbe5-4098-8d75-8c9cd3cae9e1",
+      "name": "Redis: Update Status",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-down",
+              "leftValue": "={{ $('Analyze Health Response').first().json.status }}",
+              "rightValue": "down",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1264,
+        208
+      ],
+      "id": "0480b9c2-16b4-463f-bd08-ef47dfadb7d8",
+      "name": "GLPI Down?"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aCuwZ3jJb1c2dMVY",
+          "mode": "id",
+          "cachedResultUrl": "/workflow/aCuwZ3jJb1c2dMVY"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ttl": 0,
+            "action": "get",
+            "key": "glpi_down_alert_sent"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "action",
+              "displayName": "action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "key",
+              "displayName": "key",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "value",
+              "displayName": "value",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "ttl",
+              "displayName": "ttl",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "number"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1504,
+        112
+      ],
+      "id": "31de17e5-d4a6-41c4-8b57-bcc42fa2cdd8",
+      "name": "Redis: Check Alert Sent",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "alert-not-sent",
+              "leftValue": "={{ $json.value }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1744,
+        112
+      ],
+      "id": "659adb8c-9270-46f3-b13d-f265c0f0f48f",
+      "name": "Should Send Alert?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const healthData = $('Analyze Health Response').first().json;\n\nreturn [{ json: {\n  type: 'glpi_down',\n  severity: 'critical',\n  title: '🚨 GLPI DOWN - Circuit Breaker Activé',\n  message: `GLPI API ne répond plus.\\n\\nErreur: ${healthData.error || 'Connection timeout'}\\nHeure: ${healthData.checked_at}\\n\\nLes workflows Proactif et Assist passent en mode dégradé.`,\n  slack_channel: '#alertes-infra',\n  slack_color: 'danger',\n  mark_sent_key: 'glpi_down_alert_sent',\n  mark_sent_ttl: 300\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1984,
+        0
+      ],
+      "id": "019fefbc-61a4-437b-a687-b9629cf791a0",
+      "name": "Prepare Down Alert"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aCuwZ3jJb1c2dMVY",
+          "mode": "id",
+          "cachedResultUrl": "/workflow/aCuwZ3jJb1c2dMVY"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "action": "set",
+            "key": "={{ $json.mark_sent_key }}",
+            "value": "sent",
+            "ttl": "={{ $json.mark_sent_ttl }}"
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        2224,
+        0
+      ],
+      "id": "231bbe4d-0d84-42e1-8d7e-a48d2b3ad11e",
+      "name": "Redis: Mark Alert Sent"
+    },
+    {
+      "parameters": {
+        "jsCode": "const healthData = $('Analyze Health Response').first().json;\n\nreturn [{ json: {\n  status: 'healthy',\n  message: `GLPI OK - ${healthData.checked_at}`,\n  clear_alert_key: 'glpi_down_alert_sent'\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1504,
+        304
+      ],
+      "id": "266c9bb6-0242-498c-a36b-472084bb74ec",
+      "name": "GLPI OK Handler"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aCuwZ3jJb1c2dMVY",
+          "mode": "id",
+          "cachedResultUrl": "/workflow/aCuwZ3jJb1c2dMVY"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "action": "get",
+            "key": "={{ $json.clear_alert_key }}"
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1744,
+        304
+      ],
+      "id": "19b1cc3d-fbef-4c80-900c-0d714310498c",
+      "name": "Redis: Check Was Down",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "was-down",
+              "leftValue": "={{ $json.value }}",
+              "rightValue": "sent",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1984,
+        304
+      ],
+      "id": "7434682a-aaf5-48ce-ac87-ee225456c399",
+      "name": "Was Previously Down?"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: {\n  type: 'glpi_recovered',\n  severity: 'info',\n  title: '✅ GLPI RECOVERED - Circuit Breaker Désactivé',\n  message: `GLPI API est de nouveau accessible.\\n\\nHeure: ${new Date().toISOString()}\\n\\nLes workflows reprennent le fonctionnement normal.`,\n  slack_channel: '#alertes-infra',\n  slack_color: 'good',\n  clear_key: 'glpi_down_alert_sent'\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2224,
+        208
+      ],
+      "id": "2dac4330-f9c0-4ee9-9c14-67fe4a39af13",
+      "name": "Prepare Recovery Alert"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aCuwZ3jJb1c2dMVY",
+          "mode": "id",
+          "cachedResultUrl": "/workflow/aCuwZ3jJb1c2dMVY"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "action": "delete",
+            "key": "={{ $json.clear_key }}"
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        2464,
+        208
+      ],
+      "id": "77bd4442-f679-4a18-9f97-3dbe0dbbe385",
+      "name": "Redis: Clear Down Flag"
+    },
+    {
+      "parameters": {
+        "jsCode": "const healthData = $('Analyze Health Response').first().json;\nconsole.log(`[GLPI Health] Status: ${healthData.status} | Error: ${healthData.error || 'none'}`);\nreturn [{ json: { logged: true, status: healthData.status } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2704,
+        208
+      ],
+      "id": "dead6e59-b36e-4381-a74d-abbd27206b73",
+      "name": "Log Health Check"
+    },
+    {
+      "parameters": {
+        "content": "## 🏥 WIDIP Health Check GLPI v2\n\n### Changements v2\n- ✅ Execute Sub-Workflow au lieu de HTTP Request\n- ✅ Cohérent avec architecture MCP\n- ✅ Plus rapide (~10ms vs ~20ms)\n\n### Configuration requise\n- Remplacer `REDIS_HELPER_V2_WORKFLOW_ID` par l'ID réel\n- Ou utiliser le nom du workflow si disponible\n\n### Clés Redis utilisées\n- `glpi_health_status` : ok | degraded | down\n- `glpi_down_alert_sent` : flag anti-spam",
+        "height": 400,
+        "width": 400,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        0,
+        0
+      ],
+      "typeVersion": 1,
+      "id": "6ccb60b2-c386-4c27-89ab-861a360aedb9",
+      "name": "Documentation"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Check Every 30s": {
+      "main": [
+        [
+          {
+            "node": "Ping GLPI API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ping GLPI API": {
+      "main": [
+        [
+          {
+            "node": "Analyze Health Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Analyze Health Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Health Response": {
+      "main": [
+        [
+          {
+            "node": "Redis: Update Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis: Update Status": {
+      "main": [
+        [
+          {
+            "node": "GLPI Down?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GLPI Down?": {
+      "main": [
+        [
+          {
+            "node": "Redis: Check Alert Sent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "GLPI OK Handler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis: Check Alert Sent": {
+      "main": [
+        [
+          {
+            "node": "Should Send Alert?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Send Alert?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Down Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Health Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Down Alert": {
+      "main": [
+        [
+          {
+            "node": "Redis: Mark Alert Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis: Mark Alert Sent": {
+      "main": [
+        [
+          {
+            "node": "Log Health Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GLPI OK Handler": {
+      "main": [
+        [
+          {
+            "node": "Redis: Check Was Down",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis: Check Was Down": {
+      "main": [
+        [
+          {
+            "node": "Was Previously Down?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Was Previously Down?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Recovery Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Health Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Recovery Alert": {
+      "main": [
+        [
+          {
+            "node": "Redis: Clear Down Flag",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis: Clear Down Flag": {
+      "main": [
+        [
+          {
+            "node": "Log Health Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "6ce2ab97-0c95-4c46-9e3f-accad70750ad",
+  "meta": {
+    "instanceId": "2f7feaa62d84455355dbe5623ed2cf399d33e00898464e812f19febe1805a15d"
+  },
+  "id": "yNJ1g9IKO2ZSQZ2M",
+  "tags": [
+    {
+      "name": "redis",
+      "id": "HdwVv5NzDdJhHY6M",
+      "updatedAt": "2025-12-02T10:14:30.482Z",
+      "createdAt": "2025-12-02T10:14:30.482Z"
+    },
+    {
+      "name": "health-check",
+      "id": "uu9RLaeGmNweTGzW",
+      "updatedAt": "2025-12-02T10:16:05.777Z",
+      "createdAt": "2025-12-02T10:16:05.777Z"
+    },
+    {
+      "name": "infrastructure",
+      "id": "zXgO7laYHitrILjs",
+      "updatedAt": "2025-12-02T10:14:30.475Z",
+      "createdAt": "2025-12-02T10:14:30.475Z"
+    }
+  ]
+}

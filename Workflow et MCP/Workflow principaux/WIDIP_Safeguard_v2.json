@@ -1,0 +1,709 @@
+{
+  "name": "WIDIP_Safeguard_v2",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## WIDIP SAFEGUARD v2.0\n\n### Système de validation humaine pour actions L3\n\nCe workflow gère :\n1. **Réception des demandes L3** bloquées par le MCP Server\n2. **Stockage en base** PostgreSQL (file d'attente)\n3. **Notification** aux techniciens (Slack/Email)\n4. **Interface d'approbation** via webhook\n5. **Exécution différée** après validation\n\n### Niveaux SAFEGUARD\n- L0: Lecture seule → Auto\n- L1: Action mineure → Auto si confidence ≥ 80%\n- L2: Action modérée → Avec notification\n- L3: Action sensible → **VALIDATION HUMAINE**\n- L4: Interdit → Jamais exécuté par IA\n\n### Actions L3\n- `ad_reset_password`\n- `ad_disable_account`\n- `glpi_close_ticket`",
+        "height": 440,
+        "width": 380,
+        "color": 5
+      },
+      "id": "note-safeguard-info",
+      "name": "Documentation SAFEGUARD",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-1200, 0]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "safeguard/request",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-safeguard-request",
+      "name": "Webhook: Demande L3",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-780, 200],
+      "webhookId": "safeguard-request-v2"
+    },
+    {
+      "parameters": {
+        "jsCode": "// =============================================================================\n// Valider et enrichir la demande SAFEGUARD L3\n// =============================================================================\n\nconst body = $input.first().json.body || $input.first().json;\nconst headers = $input.first().json.headers || {};\n\n// Générer un ID d'approbation unique\nconst timestamp = Date.now();\nconst randomPart = Math.random().toString(36).substring(2, 8);\nconst approvalId = `APPROVAL-${body.tool_name || 'unknown'}-${timestamp}-${randomPart}`;\n\n// Calculer l'expiration (1 heure par défaut)\nconst expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();\n\n// Construire l'objet de demande\nconst request = {\n  approval_id: approvalId,\n  tool_name: body.tool_name || body.name || 'unknown',\n  security_level: body.security_level || 'L3',\n  arguments: body.arguments || body.params || {},\n  \n  // Contexte de la requête\n  requester_workflow: body.workflow_id || headers['x-workflow-id'] || 'unknown',\n  requester_ip: headers['x-forwarded-for'] || headers['x-real-ip'] || 'unknown',\n  original_request_id: body.request_id || null,\n  \n  // Métadonnées\n  status: 'pending',\n  created_at: new Date().toISOString(),\n  expires_at: expiresAt,\n  \n  // Description lisible pour les techniciens\n  description: buildDescription(body.tool_name, body.arguments || {})\n};\n\nfunction buildDescription(toolName, args) {\n  switch(toolName) {\n    case 'ad_reset_password':\n      return `Réinitialisation du mot de passe pour l'utilisateur: ${args.username || args.user || 'inconnu'}`;\n    case 'ad_disable_account':\n      return `Désactivation du compte: ${args.username || args.user || 'inconnu'}`;\n    case 'glpi_close_ticket':\n      return `Clôture du ticket #${args.ticket_id || 'inconnu'} - Solution: ${(args.solution || '').substring(0, 100)}...`;\n    default:\n      return `Action ${toolName} avec paramètres: ${JSON.stringify(args).substring(0, 200)}`;\n  }\n}\n\nreturn [{ json: request }];"
+      },
+      "id": "code-validate-request",
+      "name": "Valider & Enrichir Demande",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-560, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO safeguard_pending_approvals (\n  approval_id,\n  tool_name,\n  security_level,\n  arguments,\n  requester_workflow,\n  requester_ip,\n  status,\n  created_at,\n  expires_at\n) VALUES (\n  '{{ $json.approval_id }}',\n  '{{ $json.tool_name }}',\n  '{{ $json.security_level }}',\n  '{{ JSON.stringify($json.arguments) }}'::jsonb,\n  '{{ $json.requester_workflow }}',\n  '{{ $json.requester_ip }}',\n  'pending',\n  NOW(),\n  '{{ $json.expires_at }}'::timestamp\n)\nRETURNING *;",
+        "options": {}
+      },
+      "id": "postgres-insert-request",
+      "name": "PostgreSQL: Sauvegarder Demande",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [-340, 200]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "approval_url",
+              "name": "approval_url",
+              "value": "={{ $env.N8N_WEBHOOK_URL || 'http://localhost:5678' }}/webhook/safeguard/approve/{{ $('Valider & Enrichir Demande').item.json.approval_id }}",
+              "type": "string"
+            },
+            {
+              "id": "reject_url",
+              "name": "reject_url",
+              "value": "={{ $env.N8N_WEBHOOK_URL || 'http://localhost:5678' }}/webhook/safeguard/reject/{{ $('Valider & Enrichir Demande').item.json.approval_id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-urls",
+      "name": "Construire URLs Approbation",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-120, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check-slack-configured",
+              "leftValue": "={{ $env.SLACK_WEBHOOK_URL }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-slack-configured",
+      "name": "Slack configuré?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SLACK_WEBHOOK_URL }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"blocks\": [\n    {\n      \"type\": \"header\",\n      \"text\": {\n        \"type\": \"plain_text\",\n        \"text\": \"🔒 SAFEGUARD - Validation Requise\",\n        \"emoji\": true\n      }\n    },\n    {\n      \"type\": \"section\",\n      \"fields\": [\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Tool:*\\n`{{ $('Valider & Enrichir Demande').item.json.tool_name }}`\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Niveau:*\\n{{ $('Valider & Enrichir Demande').item.json.security_level }} (Sensible)\"\n        }\n      ]\n    },\n    {\n      \"type\": \"section\",\n      \"text\": {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Description:*\\n{{ $('Valider & Enrichir Demande').item.json.description }}\"\n      }\n    },\n    {\n      \"type\": \"section\",\n      \"fields\": [\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*ID Demande:*\\n`{{ $('Valider & Enrichir Demande').item.json.approval_id }}`\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Expire:*\\n{{ $('Valider & Enrichir Demande').item.json.expires_at }}\"\n        }\n      ]\n    },\n    {\n      \"type\": \"actions\",\n      \"elements\": [\n        {\n          \"type\": \"button\",\n          \"text\": {\n            \"type\": \"plain_text\",\n            \"text\": \"✅ Approuver\",\n            \"emoji\": true\n          },\n          \"style\": \"primary\",\n          \"url\": \"{{ $json.approval_url }}\"\n        },\n        {\n          \"type\": \"button\",\n          \"text\": {\n            \"type\": \"plain_text\",\n            \"text\": \"❌ Refuser\",\n            \"emoji\": true\n          },\n          \"style\": \"danger\",\n          \"url\": \"{{ $json.reject_url }}\"\n        }\n      ]\n    },\n    {\n      \"type\": \"context\",\n      \"elements\": [\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"Workflow: {{ $('Valider & Enrichir Demande').item.json.requester_workflow }} | IP: {{ $('Valider & Enrichir Demande').item.json.requester_ip }}\"\n        }\n      ]\n    }\n  ]\n}",
+        "options": {}
+      },
+      "id": "slack-notification",
+      "name": "Slack: Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [320, 100],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.SMTP_FROM_EMAIL || 'widip@example.com' }}",
+        "toEmail": "={{ $env.SAFEGUARD_NOTIFY_EMAIL || 'support@example.com' }}",
+        "subject": "=🔒 SAFEGUARD - Validation requise: {{ $('Valider & Enrichir Demande').item.json.tool_name }}",
+        "emailType": "html",
+        "html": "=<html>\n<body style=\"font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;\">\n  <div style=\"background: #dc3545; color: white; padding: 20px; text-align: center;\">\n    <h1>🔒 SAFEGUARD - Validation Requise</h1>\n  </div>\n  \n  <div style=\"padding: 20px; background: #f8f9fa;\">\n    <h2>Détails de la demande</h2>\n    \n    <table style=\"width: 100%; border-collapse: collapse;\">\n      <tr>\n        <td style=\"padding: 10px; border-bottom: 1px solid #ddd;\"><strong>Tool:</strong></td>\n        <td style=\"padding: 10px; border-bottom: 1px solid #ddd;\"><code>{{ $('Valider & Enrichir Demande').item.json.tool_name }}</code></td>\n      </tr>\n      <tr>\n        <td style=\"padding: 10px; border-bottom: 1px solid #ddd;\"><strong>Niveau:</strong></td>\n        <td style=\"padding: 10px; border-bottom: 1px solid #ddd;\">{{ $('Valider & Enrichir Demande').item.json.security_level }} (Sensible)</td>\n      </tr>\n      <tr>\n        <td style=\"padding: 10px; border-bottom: 1px solid #ddd;\"><strong>Description:</strong></td>\n        <td style=\"padding: 10px; border-bottom: 1px solid #ddd;\">{{ $('Valider & Enrichir Demande').item.json.description }}</td>\n      </tr>\n      <tr>\n        <td style=\"padding: 10px; border-bottom: 1px solid #ddd;\"><strong>ID Demande:</strong></td>\n        <td style=\"padding: 10px; border-bottom: 1px solid #ddd;\"><code>{{ $('Valider & Enrichir Demande').item.json.approval_id }}</code></td>\n      </tr>\n      <tr>\n        <td style=\"padding: 10px; border-bottom: 1px solid #ddd;\"><strong>Expire:</strong></td>\n        <td style=\"padding: 10px; border-bottom: 1px solid #ddd;\">{{ $('Valider & Enrichir Demande').item.json.expires_at }}</td>\n      </tr>\n    </table>\n    \n    <div style=\"margin-top: 30px; text-align: center;\">\n      <a href=\"{{ $json.approval_url }}\" style=\"display: inline-block; padding: 15px 30px; background: #28a745; color: white; text-decoration: none; border-radius: 5px; margin-right: 10px;\">✅ APPROUVER</a>\n      <a href=\"{{ $json.reject_url }}\" style=\"display: inline-block; padding: 15px 30px; background: #dc3545; color: white; text-decoration: none; border-radius: 5px;\">❌ REFUSER</a>\n    </div>\n    \n    <p style=\"margin-top: 30px; font-size: 12px; color: #666;\">\n      Workflow: {{ $('Valider & Enrichir Demande').item.json.requester_workflow }}<br>\n      IP: {{ $('Valider & Enrichir Demande').item.json.requester_ip }}\n    </p>\n  </div>\n</body>\n</html>",
+        "options": {}
+      },
+      "id": "email-notification",
+      "name": "Email: Notification",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [320, 300],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"approval_id\": \"{{ $('Valider & Enrichir Demande').item.json.approval_id }}\",\n  \"status\": \"pending\",\n  \"message\": \"Demande de validation enregistrée. Un technicien sera notifié.\",\n  \"expires_at\": \"{{ $('Valider & Enrichir Demande').item.json.expires_at }}\"\n}",
+        "options": {}
+      },
+      "id": "respond-request-created",
+      "name": "Répondre: Demande Créée",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [540, 200]
+    },
+    {
+      "parameters": {
+        "httpMethod": "=GET",
+        "path": "safeguard/approve/:approval_id",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-approve",
+      "name": "Webhook: Approuver",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-780, 520],
+      "webhookId": "safeguard-approve-v2"
+    },
+    {
+      "parameters": {
+        "httpMethod": "=GET",
+        "path": "safeguard/reject/:approval_id",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-reject",
+      "name": "Webhook: Refuser",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-780, 840],
+      "webhookId": "safeguard-reject-v2"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE safeguard_pending_approvals\nSET \n  status = 'approved',\n  approver = 'webhook_user',\n  decided_at = NOW()\nWHERE \n  approval_id = '{{ $json.params.approval_id }}'\n  AND status = 'pending'\n  AND expires_at > NOW()\nRETURNING *;",
+        "options": {}
+      },
+      "id": "postgres-approve",
+      "name": "PostgreSQL: Approuver",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [-560, 520]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE safeguard_pending_approvals\nSET \n  status = 'rejected',\n  approver = 'webhook_user',\n  approval_reason = 'Refusé par technicien',\n  decided_at = NOW()\nWHERE \n  approval_id = '{{ $json.params.approval_id }}'\n  AND status = 'pending'\nRETURNING *;",
+        "options": {}
+      },
+      "id": "postgres-reject",
+      "name": "PostgreSQL: Refuser",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [-560, 840]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check-approved",
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-approved-found",
+      "name": "Demande trouvée?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-340, 520]
+    },
+    {
+      "parameters": {
+        "jsCode": "// =============================================================================\n// Exécuter l'action approuvée via MCP Server\n// =============================================================================\n\nconst approval = $input.first().json[0];\n\n// Récupérer les infos de la demande\nconst toolName = approval.tool_name;\nconst args = typeof approval.arguments === 'string' \n  ? JSON.parse(approval.arguments) \n  : approval.arguments;\n\n// Construire la requête MCP\nconst mcpRequest = {\n  jsonrpc: '2.0',\n  id: `approved-${approval.approval_id}`,\n  method: 'tools/call',\n  params: {\n    name: toolName,\n    arguments: args,\n    // Flag pour bypasser SAFEGUARD (car déjà approuvé)\n    _approved: true,\n    _approval_id: approval.approval_id\n  }\n};\n\nreturn [{\n  json: {\n    approval: approval,\n    mcp_request: mcpRequest,\n    tool_name: toolName,\n    arguments: args\n  }\n}];"
+      },
+      "id": "code-prepare-execution",
+      "name": "Préparer Exécution MCP",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-120, 420]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:3001/mcp/call",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.MCP_API_KEY }}"
+            },
+            {
+              "name": "X-Safeguard-Approved",
+              "value": "={{ $json.approval.approval_id }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.mcp_request) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "http-execute-mcp",
+      "name": "MCP: Exécuter Action",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [100, 420],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO safeguard_audit_log (\n  tool_name,\n  security_level,\n  action,\n  approval_id,\n  details\n) VALUES (\n  '{{ $('Préparer Exécution MCP').item.json.tool_name }}',\n  'L3',\n  'executed_after_approval',\n  '{{ $('Préparer Exécution MCP').item.json.approval.approval_id }}',\n  '{{ JSON.stringify({ result: $json }) }}'::jsonb\n);",
+        "options": {}
+      },
+      "id": "postgres-log-execution",
+      "name": "PostgreSQL: Log Exécution",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [320, 420]
+    },
+    {
+      "parameters": {
+        "respondWith": "html",
+        "responseBody": "=<!DOCTYPE html>\n<html>\n<head>\n  <title>SAFEGUARD - Action Approuvée</title>\n  <style>\n    body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; text-align: center; }\n    .success { background: #d4edda; border: 1px solid #c3e6cb; padding: 20px; border-radius: 5px; }\n    h1 { color: #155724; }\n    code { background: #f8f9fa; padding: 2px 6px; border-radius: 3px; }\n  </style>\n</head>\n<body>\n  <div class=\"success\">\n    <h1>✅ Action Approuvée et Exécutée</h1>\n    <p>L'action <code>{{ $('Préparer Exécution MCP').item.json.tool_name }}</code> a été exécutée avec succès.</p>\n    <p><strong>ID:</strong> <code>{{ $('Préparer Exécution MCP').item.json.approval.approval_id }}</code></p>\n    <p>Vous pouvez fermer cette fenêtre.</p>\n  </div>\n</body>\n</html>",
+        "options": {}
+      },
+      "id": "respond-approved",
+      "name": "Répondre: Approuvé",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [540, 420]
+    },
+    {
+      "parameters": {
+        "respondWith": "html",
+        "responseBody": "<!DOCTYPE html>\n<html>\n<head>\n  <title>SAFEGUARD - Erreur</title>\n  <style>\n    body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; text-align: center; }\n    .error { background: #f8d7da; border: 1px solid #f5c6cb; padding: 20px; border-radius: 5px; }\n    h1 { color: #721c24; }\n  </style>\n</head>\n<body>\n  <div class=\"error\">\n    <h1>❌ Demande Non Trouvée</h1>\n    <p>Cette demande n'existe pas, a déjà été traitée, ou a expiré.</p>\n  </div>\n</body>\n</html>",
+        "options": {
+          "responseCode": 404
+        }
+      },
+      "id": "respond-not-found",
+      "name": "Répondre: Non Trouvé",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [-120, 620]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check-rejected",
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-rejected-found",
+      "name": "Demande trouvée?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-340, 840]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO safeguard_audit_log (\n  tool_name,\n  security_level,\n  action,\n  approval_id,\n  details\n) VALUES (\n  '{{ $json[0].tool_name }}',\n  'L3',\n  'rejected',\n  '{{ $json[0].approval_id }}',\n  '{\"reason\": \"Refusé par technicien via webhook\"}'::jsonb\n);",
+        "options": {}
+      },
+      "id": "postgres-log-rejection",
+      "name": "PostgreSQL: Log Refus",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [-120, 740]
+    },
+    {
+      "parameters": {
+        "respondWith": "html",
+        "responseBody": "=<!DOCTYPE html>\n<html>\n<head>\n  <title>SAFEGUARD - Action Refusée</title>\n  <style>\n    body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; text-align: center; }\n    .rejected { background: #fff3cd; border: 1px solid #ffc107; padding: 20px; border-radius: 5px; }\n    h1 { color: #856404; }\n    code { background: #f8f9fa; padding: 2px 6px; border-radius: 3px; }\n  </style>\n</head>\n<body>\n  <div class=\"rejected\">\n    <h1>🚫 Action Refusée</h1>\n    <p>L'action <code>{{ $('PostgreSQL: Refuser').item.json[0].tool_name }}</code> a été refusée.</p>\n    <p><strong>ID:</strong> <code>{{ $('PostgreSQL: Refuser').item.json[0].approval_id }}</code></p>\n    <p>Vous pouvez fermer cette fenêtre.</p>\n  </div>\n</body>\n</html>",
+        "options": {}
+      },
+      "id": "respond-rejected",
+      "name": "Répondre: Refusé",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [100, 740]
+    },
+    {
+      "parameters": {
+        "respondWith": "html",
+        "responseBody": "<!DOCTYPE html>\n<html>\n<head>\n  <title>SAFEGUARD - Erreur</title>\n  <style>\n    body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; text-align: center; }\n    .error { background: #f8d7da; border: 1px solid #f5c6cb; padding: 20px; border-radius: 5px; }\n    h1 { color: #721c24; }\n  </style>\n</head>\n<body>\n  <div class=\"error\">\n    <h1>❌ Demande Non Trouvée</h1>\n    <p>Cette demande n'existe pas ou a déjà été traitée.</p>\n  </div>\n</body>\n</html>",
+        "options": {
+          "responseCode": 404
+        }
+      },
+      "id": "respond-reject-not-found",
+      "name": "Répondre: Non Trouvé",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [-120, 940]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "schedule-cleanup",
+      "name": "Cron: Cleanup Expirations",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-780, 1100]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Marquer les demandes expirées\nUPDATE safeguard_pending_approvals\nSET status = 'expired'\nWHERE status = 'pending' AND expires_at < NOW();\n\n-- Logger les expirations\nINSERT INTO safeguard_audit_log (tool_name, security_level, action, approval_id, details)\nSELECT \n  tool_name,\n  security_level,\n  'expired',\n  approval_id,\n  jsonb_build_object('expired_at', NOW())\nFROM safeguard_pending_approvals\nWHERE status = 'expired' \n  AND decided_at IS NULL;\n\n-- Retourner le nombre d'expirations\nSELECT COUNT(*) as expired_count\nFROM safeguard_pending_approvals\nWHERE status = 'expired'\n  AND decided_at IS NULL;",
+        "options": {}
+      },
+      "id": "postgres-cleanup",
+      "name": "PostgreSQL: Cleanup Expirations",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [-560, 1100]
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "safeguard/pending",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-list-pending",
+      "name": "Webhook: Liste Pending",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-780, 1340],
+      "webhookId": "safeguard-list-pending-v2"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  approval_id,\n  tool_name,\n  security_level,\n  arguments,\n  requester_workflow,\n  status,\n  created_at,\n  expires_at,\n  EXTRACT(EPOCH FROM (expires_at - NOW())) / 60 as minutes_remaining\nFROM safeguard_pending_approvals\nWHERE status = 'pending'\n  AND expires_at > NOW()\nORDER BY created_at DESC\nLIMIT 50;",
+        "options": {}
+      },
+      "id": "postgres-list-pending",
+      "name": "PostgreSQL: Liste Pending",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [-560, 1340]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook: Demande L3": {
+      "main": [
+        [
+          {
+            "node": "Valider & Enrichir Demande",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valider & Enrichir Demande": {
+      "main": [
+        [
+          {
+            "node": "PostgreSQL: Sauvegarder Demande",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PostgreSQL: Sauvegarder Demande": {
+      "main": [
+        [
+          {
+            "node": "Construire URLs Approbation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Construire URLs Approbation": {
+      "main": [
+        [
+          {
+            "node": "Slack configuré?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack configuré?": {
+      "main": [
+        [
+          {
+            "node": "Slack: Notification",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Email: Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack: Notification": {
+      "main": [
+        [
+          {
+            "node": "Répondre: Demande Créée",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email: Notification": {
+      "main": [
+        [
+          {
+            "node": "Répondre: Demande Créée",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Approuver": {
+      "main": [
+        [
+          {
+            "node": "PostgreSQL: Approuver",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Refuser": {
+      "main": [
+        [
+          {
+            "node": "PostgreSQL: Refuser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PostgreSQL: Approuver": {
+      "main": [
+        [
+          {
+            "node": "Demande trouvée?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PostgreSQL: Refuser": {
+      "main": [
+        [
+          {
+            "node": "Demande trouvée?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Demande trouvée?": {
+      "main": [
+        [
+          {
+            "node": "Préparer Exécution MCP",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Répondre: Non Trouvé",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Préparer Exécution MCP": {
+      "main": [
+        [
+          {
+            "node": "MCP: Exécuter Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP: Exécuter Action": {
+      "main": [
+        [
+          {
+            "node": "PostgreSQL: Log Exécution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PostgreSQL: Log Exécution": {
+      "main": [
+        [
+          {
+            "node": "Répondre: Approuvé",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Demande trouvée?1": {
+      "main": [
+        [
+          {
+            "node": "PostgreSQL: Log Refus",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Répondre: Non Trouvé",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "if-rejected-found": {
+      "main": [
+        [
+          {
+            "node": "PostgreSQL: Log Refus",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Répondre: Non Trouvé",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PostgreSQL: Log Refus": {
+      "main": [
+        [
+          {
+            "node": "Répondre: Refusé",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cron: Cleanup Expirations": {
+      "main": [
+        [
+          {
+            "node": "PostgreSQL: Cleanup Expirations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Liste Pending": {
+      "main": [
+        [
+          {
+            "node": "PostgreSQL: Liste Pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "safeguard-v2-20251219",
+  "meta": {
+    "instanceId": "widip-safeguard-v2"
+  },
+  "id": "WIDIP_Safeguard_v2",
+  "tags": [
+    {
+      "name": "widip"
+    },
+    {
+      "name": "safeguard"
+    },
+    {
+      "name": "security"
+    }
+  ]
+}
