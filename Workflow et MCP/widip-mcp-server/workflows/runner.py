@@ -15,9 +15,9 @@ import asyncio
 from contextlib import asynccontextmanager
 
 import structlog
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 
 from workflows.core.config import settings
 from workflows.core.mcp_client import MCPClient
@@ -26,6 +26,13 @@ from workflows.core.scheduler import WorkflowScheduler
 
 # Import workflows
 from workflows.health_check import HealthCheckWorkflow
+from workflows.safeguard import (
+    SafeguardCleanupWorkflow,
+    SafeguardService,
+    SafeguardNotifier,
+    CreateApprovalRequest,
+    ResolveApprovalRequest,
+)
 
 # Setup structured logging
 structlog.configure(
@@ -51,6 +58,8 @@ logger = structlog.get_logger()
 mcp_client: MCPClient = None
 redis_client: RedisClient = None
 scheduler: WorkflowScheduler = None
+safeguard_service: SafeguardService = None
+safeguard_notifier: SafeguardNotifier = None
 
 
 @asynccontextmanager
@@ -60,7 +69,7 @@ async def lifespan(app: FastAPI):
     Initializes clients and scheduler on startup.
     Cleans up on shutdown.
     """
-    global mcp_client, redis_client, scheduler
+    global mcp_client, redis_client, scheduler, safeguard_service, safeguard_notifier
 
     logger.info(
         "workflow_runner_starting",
@@ -93,6 +102,10 @@ async def lifespan(app: FastAPI):
         mcp_client=mcp_client,
         redis_client=redis_client,
     )
+
+    # Initialize SAFEGUARD service
+    safeguard_service = SafeguardService(redis_client, mcp_client)
+    safeguard_notifier = SafeguardNotifier(base_url="http://localhost:3002")
 
     # Register workflows
     if settings.scheduler_enabled:
@@ -128,6 +141,12 @@ def _register_workflows():
     scheduler.register_interval(
         HealthCheckWorkflow,
         seconds=settings.health_check_interval_seconds,
+    )
+
+    # SAFEGUARD Cleanup - every hour
+    scheduler.register_cron(
+        SafeguardCleanupWorkflow,
+        minute=0,  # At minute 0 of every hour
     )
 
     # TODO: Register other workflows as they are migrated
@@ -279,6 +298,302 @@ async def resume_workflow(workflow_name: str):
         raise HTTPException(status_code=404, detail="Workflow not found")
 
     return {"status": "resumed", "workflow": workflow_name}
+
+
+# ==================== SAFEGUARD Endpoints ====================
+
+
+@app.post("/safeguard/request")
+async def create_safeguard_request(
+    request: CreateApprovalRequest,
+    http_request: Request,
+):
+    """
+    Create a new SAFEGUARD approval request.
+
+    This is called by the MCP server when a tool requires human approval.
+    """
+    if not safeguard_service:
+        raise HTTPException(status_code=503, detail="SAFEGUARD service not initialized")
+
+    try:
+        approval = await safeguard_service.create_request(
+            request,
+            caller_ip=http_request.client.host if http_request.client else None,
+        )
+
+        # Send notification
+        if safeguard_notifier:
+            await safeguard_notifier.notify_approval_needed(approval, channels=["slack"])
+
+        return {
+            "success": True,
+            "request_id": approval.id,
+            "status": approval.status.value,
+            "expires_at": approval.expires_at.isoformat() if approval.expires_at else None,
+        }
+
+    except Exception as e:
+        logger.error("safeguard_create_request_failed", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/safeguard/pending")
+async def list_pending_approvals():
+    """List all pending SAFEGUARD approval requests"""
+    if not safeguard_service:
+        raise HTTPException(status_code=503, detail="SAFEGUARD service not initialized")
+
+    try:
+        pending = await safeguard_service.list_pending()
+        return {
+            "success": True,
+            "count": len(pending),
+            "requests": [
+                {
+                    "id": r.id,
+                    "tool_name": r.tool_name,
+                    "safeguard_level": r.safeguard_level.value,
+                    "confidence": r.confidence,
+                    "reasoning": r.reasoning,
+                    "created_at": r.created_at.isoformat(),
+                    "expires_at": r.expires_at.isoformat() if r.expires_at else None,
+                    "workflow_name": r.workflow_name,
+                }
+                for r in pending
+            ],
+        }
+    except Exception as e:
+        logger.error("safeguard_list_pending_failed", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/safeguard/request/{request_id}")
+async def get_safeguard_request(request_id: str):
+    """Get details of a specific approval request"""
+    if not safeguard_service:
+        raise HTTPException(status_code=503, detail="SAFEGUARD service not initialized")
+
+    request = await safeguard_service.get_request(request_id)
+    if not request:
+        raise HTTPException(status_code=404, detail="Request not found")
+
+    return {
+        "success": True,
+        "request": {
+            "id": request.id,
+            "tool_name": request.tool_name,
+            "arguments": request.arguments,
+            "safeguard_level": request.safeguard_level.value,
+            "status": request.status.value,
+            "confidence": request.confidence,
+            "reasoning": request.reasoning,
+            "risk_assessment": request.risk_assessment,
+            "workflow_name": request.workflow_name,
+            "workflow_id": request.workflow_id,
+            "caller_ip": request.caller_ip,
+            "created_at": request.created_at.isoformat(),
+            "expires_at": request.expires_at.isoformat() if request.expires_at else None,
+            "resolved_at": request.resolved_at.isoformat() if request.resolved_at else None,
+            "resolved_by": request.resolved_by,
+            "resolution_note": request.resolution_note,
+            "execution_result": request.execution_result,
+            "execution_error": request.execution_error,
+        },
+    }
+
+
+@app.post("/safeguard/approve/{request_id}")
+async def approve_safeguard_request(
+    request_id: str,
+    body: ResolveApprovalRequest,
+):
+    """
+    Approve a SAFEGUARD request and execute the MCP tool.
+
+    The tool will be executed immediately after approval.
+    """
+    if not safeguard_service:
+        raise HTTPException(status_code=503, detail="SAFEGUARD service not initialized")
+
+    try:
+        response = await safeguard_service.approve(
+            request_id,
+            resolved_by=body.resolved_by,
+            resolution_note=body.resolution_note,
+        )
+
+        # Send notification
+        if safeguard_notifier:
+            request = await safeguard_service.get_request(request_id)
+            if request:
+                await safeguard_notifier.notify_approved(request)
+
+        return {
+            "success": True,
+            "request_id": response.request_id,
+            "status": response.status.value,
+            "execution_result": response.execution_result,
+            "execution_error": response.execution_error,
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error("safeguard_approve_failed", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/safeguard/approve/{request_id}")
+async def approve_safeguard_request_simple(
+    request_id: str,
+    user: str = Query(default="admin", description="Username of approver"),
+):
+    """
+    Simple GET endpoint for approving via link click.
+
+    Used in Slack notifications for quick approval.
+    """
+    if not safeguard_service:
+        raise HTTPException(status_code=503, detail="SAFEGUARD service not initialized")
+
+    try:
+        response = await safeguard_service.approve(
+            request_id,
+            resolved_by=user,
+            resolution_note="Approved via quick link",
+        )
+
+        # Send notification
+        if safeguard_notifier:
+            request = await safeguard_service.get_request(request_id)
+            if request:
+                await safeguard_notifier.notify_approved(request)
+
+        # Return HTML for browser
+        return HTMLResponse(
+            content=f"""
+            <html>
+            <head><title>SAFEGUARD - Approved</title></head>
+            <body style="font-family: sans-serif; text-align: center; padding: 50px;">
+                <h1>✅ Request Approved</h1>
+                <p>Request <code>{request_id[:8]}</code> has been approved.</p>
+                <p>Tool executed: <code>{response.execution_result is not None}</code></p>
+                {f'<p style="color: red;">Error: {response.execution_error}</p>' if response.execution_error else ''}
+                <a href="/safeguard/pending">View Pending Requests</a>
+            </body>
+            </html>
+            """,
+            status_code=200,
+        )
+
+    except ValueError as e:
+        return HTMLResponse(
+            content=f"""
+            <html>
+            <head><title>SAFEGUARD - Error</title></head>
+            <body style="font-family: sans-serif; text-align: center; padding: 50px;">
+                <h1>❌ Error</h1>
+                <p>{str(e)}</p>
+                <a href="/safeguard/pending">View Pending Requests</a>
+            </body>
+            </html>
+            """,
+            status_code=400,
+        )
+
+
+@app.post("/safeguard/reject/{request_id}")
+async def reject_safeguard_request(
+    request_id: str,
+    body: ResolveApprovalRequest,
+):
+    """Reject a SAFEGUARD request"""
+    if not safeguard_service:
+        raise HTTPException(status_code=503, detail="SAFEGUARD service not initialized")
+
+    try:
+        response = await safeguard_service.reject(
+            request_id,
+            resolved_by=body.resolved_by,
+            resolution_note=body.resolution_note,
+        )
+
+        # Send notification
+        if safeguard_notifier:
+            request = await safeguard_service.get_request(request_id)
+            if request:
+                await safeguard_notifier.notify_rejected(request)
+
+        return {
+            "success": True,
+            "request_id": response.request_id,
+            "status": response.status.value,
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error("safeguard_reject_failed", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/safeguard/reject/{request_id}")
+async def reject_safeguard_request_simple(
+    request_id: str,
+    user: str = Query(default="admin", description="Username of rejector"),
+    reason: str = Query(default="", description="Rejection reason"),
+):
+    """
+    Simple GET endpoint for rejecting via link click.
+
+    Used in Slack notifications for quick rejection.
+    """
+    if not safeguard_service:
+        raise HTTPException(status_code=503, detail="SAFEGUARD service not initialized")
+
+    try:
+        response = await safeguard_service.reject(
+            request_id,
+            resolved_by=user,
+            resolution_note=reason or "Rejected via quick link",
+        )
+
+        # Send notification
+        if safeguard_notifier:
+            request = await safeguard_service.get_request(request_id)
+            if request:
+                await safeguard_notifier.notify_rejected(request)
+
+        # Return HTML for browser
+        return HTMLResponse(
+            content=f"""
+            <html>
+            <head><title>SAFEGUARD - Rejected</title></head>
+            <body style="font-family: sans-serif; text-align: center; padding: 50px;">
+                <h1>❌ Request Rejected</h1>
+                <p>Request <code>{request_id[:8]}</code> has been rejected.</p>
+                <a href="/safeguard/pending">View Pending Requests</a>
+            </body>
+            </html>
+            """,
+            status_code=200,
+        )
+
+    except ValueError as e:
+        return HTMLResponse(
+            content=f"""
+            <html>
+            <head><title>SAFEGUARD - Error</title></head>
+            <body style="font-family: sans-serif; text-align: center; padding: 50px;">
+                <h1>❌ Error</h1>
+                <p>{str(e)}</p>
+                <a href="/safeguard/pending">View Pending Requests</a>
+            </body>
+            </html>
+            """,
+            status_code=400,
+        )
 
 
 # ==================== Main ====================
