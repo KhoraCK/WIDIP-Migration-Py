@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Architecture WIDIP V11 - HDS/ISO 27001</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            /* Palette WIDIP */
+            --widip-blue: #407BFE;       
+            --widip-dark: #00203D;       
+            --widip-light-bg: #F8FAFC;
+        }
+        
+        body {
+            /* FOND ÉPURÉ : Blanc pur vers un bleu très pâle (Pas de vignetage sombre) */
+            background: linear-gradient(180deg, #FFFFFF 0%, #F0F7FF 100%);
+            color: var(--widip-dark);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .widip-blue-text { color: var(--widip-blue); }
+
+        /* --- CARD STYLES (LIGHT THEME) --- */
+        .node-card {
+            /* Fond Blanc */
+            background-color: rgba(255, 255, 255, 0.98); 
+            
+            /* Bordure fine grise par défaut */
+            border: 2px solid #e2e8f0; 
+            
+            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            cursor: pointer;
+            position: absolute; 
+            z-index: 10;
+            
+            /* Ombre douce pour détacher du fond blanc */
+            box-shadow: 0 4px 6px -1px rgba(0, 32, 61, 0.05), 0 2px 4px -1px rgba(0, 32, 61, 0.03);
+        }
+
+        /* --- HOVER EFFECTS (DYNAMIQUE) --- */
+        .node-card:hover {
+            z-index: 50;
+            
+            /* 1. La bordure prend la couleur de l'agent */
+            border-color: var(--glow-color);
+            
+            /* 2. Halo Lumineux coloré diffus */
+            box-shadow: 0 10px 30px -5px var(--glow-color-light), 0 0 15px var(--glow-color-light);
+        }
+
+        /* --- POSITIONING & ZOOM --- */
+        
+        .pos-horizontal-center {
+            left: 50%;
+            transform: translateX(-50%) scale(1);
+        }
+        .pos-horizontal-center:hover {
+            transform: translateX(-50%) scale(1.1); /* Zoom */
+        }
+
+        .pos-vertical-center {
+            top: 50%;
+            transform: translateY(-50%) scale(1);
+        }
+        .pos-vertical-center:hover {
+            transform: translateY(-50%) scale(1.1); /* Zoom */
+        }
+
+        .pos-dead-center {
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%) scale(1);
+        }
+        .pos-dead-center:hover {
+            transform: translate(-50%, -50%) scale(1.05); /* Zoom léger */
+        }
+        
+        /* Ajustement position pour éviter chevauchement */
+        .pos-left { left: 2%; }
+        .pos-right { right: 2%; }
+
+        /* Lignes de connexion (Gris bleuté) */
+        .connector-line {
+            stroke: #cbd5e1; 
+            stroke-width: 2;
+            stroke-dasharray: 6;
+            animation: dash 40s linear infinite;
+        }
+
+        @keyframes dash {
+            to { stroke-dashoffset: 1000; }
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            background-color: rgba(0, 32, 61, 0.6);
+            backdrop-filter: blur(5px);
+        }
+        
+        /* Grid Pattern Background - Très subtil */
+        .bg-grid-pattern {
+            background-image: radial-gradient(#407BFE 1px, transparent 1px);
+            background-size: 40px 40px;
+            opacity: 0.15;
+        }
+        
+        /* Animations Icones et Textes */
+        .node-card i.main-icon {
+            transition: transform 0.3s ease, color 0.3s ease;
+            color: #94a3b8; /* Gris par défaut */
+        }
+        .node-card:hover i.main-icon {
+            transform: scale(1.2);
+            color: var(--glow-color); /* Prend la couleur au survol */
+        }
+        
+        .node-card h3 {
+            transition: color 0.3s ease;
+            color: var(--widip-dark);
+        }
+        .node-card:hover h3 {
+            color: var(--glow-color);
+        }
+
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden text-[#00203D]">
+
+    <!-- Background Layers -->
+    <div class="absolute inset-0 z-0 pointer-events-none">
+        <div class="absolute inset-0 bg-grid-pattern"></div>
+    </div>
+
+    <!-- Header -->
+    <header class="text-center mb-8 z-10 relative">
+        <h1 class="text-4xl font-extrabold tracking-tight mb-2 text-[#00203D]">
+            SYSTÈME IA WIDIP <span style="color: #407BFE">V11</span>
+        </h1>
+        <div class="flex items-center justify-center gap-6 text-xs font-semibold text-gray-500 uppercase tracking-widest bg-white/60 py-2 px-6 rounded-full border border-gray-100 shadow-sm inline-flex backdrop-blur-sm">
+            <span><i class="fas fa-server mr-2 text-blue-500"></i>Infra Unifiée</span>
+            <span class="text-gray-300">•</span>
+            <span><i class="fas fa-lock mr-2 text-blue-500"></i>HDS / ISO 27001</span>
+            <span class="text-gray-300">•</span>
+            <span><i class="fas fa-microchip mr-2 text-blue-500"></i>API Devstral</span>
+        </div>
+    </header>
+
+    <!-- Main Diagram Container -->
+    <div class="relative w-full max-w-5xl h-[550px] z-10 hidden md:block">
+        
+        <!-- SVG Connections Layer -->
+        <svg class="absolute inset-0 w-full h-full pointer-events-none z-0">
+            <!-- Central Hub Connections -->
+            <line x1="50%" y1="50%" x2="50%" y2="18%" class="connector-line" /> <!-- To Safeguard -->
+            <line x1="50%" y1="50%" x2="18%" y2="50%" class="connector-line" /> <!-- To Sentinel -->
+            <line x1="50%" y1="50%" x2="82%" y2="50%" class="connector-line" /> <!-- To Support -->
+            <line x1="50%" y1="50%" x2="50%" y2="82%" class="connector-line" /> <!-- To Core -->
+        </svg>
+
+        <!-- 1. SAFEGUARD (Top) -->
+        <!-- Color: RED (#ef4444) -->
+        <div onclick="openModal('safeguard')" class="node-card pos-horizontal-center top-0 w-64 p-4 rounded-xl text-center" style="--glow-color: #ef4444; --glow-color-light: rgba(239, 68, 68, 0.3);">
+            <div class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-white border border-red-500 px-3 py-1 rounded-full text-[10px] font-bold text-red-500 shadow-sm tracking-wide whitespace-nowrap">
+                GARDIEN DE LA CONFORMITÉ
+            </div>
+            <div class="text-3xl mb-2 mt-2"><i class="fas fa-shield-alt main-icon"></i></div>
+            <h3 class="font-bold text-sm mb-1">AGENT SAFEGUARD</h3>
+            <p class="text-[10px] text-gray-500 font-medium">Validation ISO 27001 & SLA</p>
+        </div>
+
+        <!-- 2. SENTINEL (Left) -->
+        <!-- Color: GREEN (#22c55e) -->
+        <div onclick="openModal('sentinel')" class="node-card pos-vertical-center pos-left w-60 p-4 rounded-xl text-center" style="--glow-color: #22c55e; --glow-color-light: rgba(34, 197, 94, 0.3);">
+            <div class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-white border border-green-500 px-3 py-1 rounded-full text-[10px] font-bold text-green-500 shadow-sm tracking-wide whitespace-nowrap">
+                VEILLE PROACTIVE
+            </div>
+            <div class="text-3xl mb-2 mt-2"><i class="fas fa-radar main-icon"></i></div>
+            <h3 class="font-bold text-sm mb-1">AGENT SENTINEL</h3>
+            <p class="text-[10px] text-gray-500 font-medium">Diagnostic Réseau & Infra</p>
+        </div>
+
+        <!-- 3. MCP SERVER (Center) - Main Hub -->
+        <!-- Color: WIDIP BLUE (#407BFE) -->
+        <div onclick="openModal('mcp')" class="node-card pos-dead-center w-80 p-6 rounded-2xl text-center" style="--glow-color: #407BFE; --glow-color-light: rgba(64, 123, 254, 0.3);">
+            <div class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-[#407BFE] px-4 py-1 rounded-full text-[10px] font-bold text-white shadow-md tracking-wider whitespace-nowrap">
+                HUB D'EXÉCUTION CENTRAL
+            </div>
+            <div class="text-5xl mb-3 mt-2"><i class="fas fa-network-wired main-icon" style="color: #407BFE;"></i></div>
+            <h2 class="font-extrabold text-lg text-[#00203D] mb-2">SERVEUR MCP UNIFIÉ</h2>
+            <p class="text-xs text-gray-500 font-medium mb-3">Orchestration & Connecteurs</p>
+            <div class="flex justify-center gap-2">
+                <span class="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] border border-blue-100 font-bold">GLPI</span>
+                <span class="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] border border-blue-100 font-bold">OBSERVIUM</span>
+                <span class="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] border border-blue-100 font-bold">AD</span>
+            </div>
+        </div>
+
+        <!-- 4. SUPPORT (Right) -->
+        <!-- Color: PURPLE (#a855f7) -->
+        <div onclick="openModal('support')" class="node-card pos-vertical-center pos-right w-60 p-4 rounded-xl text-center" style="--glow-color: #a855f7; --glow-color-light: rgba(168, 85, 247, 0.3);">
+            <div class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-white border border-purple-500 px-3 py-1 rounded-full text-[10px] font-bold text-purple-500 shadow-sm tracking-wide whitespace-nowrap">
+                ASSISTANCE TICKET
+            </div>
+            <div class="text-3xl mb-2 mt-2"><i class="fas fa-headset main-icon"></i></div>
+            <h3 class="font-bold text-sm mb-1">AGENT SUPPORT</h3>
+            <p class="text-[10px] text-gray-500 font-medium">Résolution N0/N1 GLPI</p>
+        </div>
+
+        <!-- 5. CORE (Bottom) -->
+        <!-- Color: PINK (#ec4899) -->
+        <div onclick="openModal('core')" class="node-card pos-horizontal-center bottom-0 w-64 p-4 rounded-xl text-center" style="--glow-color: #ec4899; --glow-color-light: rgba(236, 72, 153, 0.3);">
+            <div class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-white border border-pink-500 px-3 py-1 rounded-full text-[10px] font-bold text-pink-500 shadow-sm tracking-wide whitespace-nowrap">
+                INTELLIGENCE & MÉMOIRE
+            </div>
+            <div class="text-3xl mb-2 mt-2"><i class="fas fa-brain main-icon"></i></div>
+            <h3 class="font-bold text-sm mb-1">MISTRAL AI + RAG</h3>
+            <p class="text-[10px] text-gray-500 font-medium">Base de Connaissance & Raisonnement</p>
+        </div>
+    </div>
+
+    <!-- Mobile View (Stacked) -->
+    <div class="md:hidden flex flex-col gap-3 w-full max-w-xs z-10">
+        <div onclick="openModal('safeguard')" class="bg-white border border-gray-200 p-4 rounded-lg flex items-center gap-4 hover:border-red-500 hover:shadow-lg transition">
+            <div class="text-2xl text-red-500"><i class="fas fa-shield-alt"></i></div>
+            <div>
+                <h3 class="font-bold text-[#00203D] text-sm">AGENT SAFEGUARD</h3>
+                <p class="text-xs text-gray-500">Sécurité & Conformité</p>
+            </div>
+        </div>
+        <div onclick="openModal('sentinel')" class="bg-white border border-gray-200 p-4 rounded-lg flex items-center gap-4 hover:border-green-500 hover:shadow-lg transition">
+            <div class="text-2xl text-green-500"><i class="fas fa-radar"></i></div>
+            <div>
+                <h3 class="font-bold text-[#00203D] text-sm">AGENT SENTINEL</h3>
+                <p class="text-xs text-gray-500">Diagnostic Réseau</p>
+            </div>
+        </div>
+        <div onclick="openModal('mcp')" class="bg-blue-50 border border-blue-200 p-4 rounded-lg flex items-center gap-4 hover:border-blue-500 hover:shadow-lg transition">
+            <div class="text-2xl text-[#407BFE]"><i class="fas fa-network-wired"></i></div>
+            <div>
+                <h3 class="font-bold text-[#00203D] text-sm">SERVEUR MCP CENTRAL</h3>
+                <p class="text-xs text-gray-500">Hub d'intégration</p>
+            </div>
+        </div>
+        <div onclick="openModal('support')" class="bg-white border border-gray-200 p-4 rounded-lg flex items-center gap-4 hover:border-purple-500 hover:shadow-lg transition">
+            <div class="text-2xl text-purple-500"><i class="fas fa-headset"></i></div>
+            <div>
+                <h3 class="font-bold text-[#00203D] text-sm">AGENT SUPPORT</h3>
+                <p class="text-xs text-gray-500">Gestion Tickets</p>
+            </div>
+        </div>
+        <div onclick="openModal('core')" class="bg-white border border-gray-200 p-4 rounded-lg flex items-center gap-4 hover:border-pink-500 hover:shadow-lg transition">
+            <div class="text-2xl text-pink-500"><i class="fas fa-brain"></i></div>
+            <div>
+                <h3 class="font-bold text-[#00203D] text-sm">CORE INTELLIGENCE</h3>
+                <p class="text-xs text-gray-500">Mistral API + Data</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-8 text-center text-gray-400 text-xs italic z-10 relative">
+        <i class="fas fa-info-circle mr-1"></i> Cliquez sur un module pour afficher les spécifications.
+    </div>
+
+    <!-- MODALS (Light Theme) -->
+    <div id="modal-backdrop" class="fixed inset-0 modal-overlay z-40 hidden flex items-center justify-center p-4" onclick="closeModal()">
+        <div id="modal-content" class="bg-white w-full max-w-2xl rounded-xl shadow-2xl border border-gray-200 overflow-hidden relative" onclick="event.stopPropagation()">
+            
+            <button onclick="closeModal()" class="absolute top-4 right-4 text-gray-400 hover:text-[#00203D] transition-colors bg-gray-100 w-8 h-8 rounded-full flex items-center justify-center">
+                <i class="fas fa-times"></i>
+            </button>
+
+            <!-- Dynamic Content Area -->
+            <div id="modal-body" class="p-8 text-[#00203D]">
+                <!-- Content will be injected here via JS -->
+            </div>
+            
+            <div class="bg-gray-50 px-8 py-4 border-t border-gray-100 flex justify-between items-center">
+                <span class="text-xs text-gray-500 font-bold tracking-wider">WIDIP V11 ARCHITECTURE</span>
+                <span class="text-xs text-[#407BFE] font-mono font-bold">CONFIDENTIAL // INTERNAL USE</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const modalData = {
+            'safeguard': {
+                title: "AGENT SAFEGUARD (Le Gardien)",
+                icon: "fa-shield-alt",
+                color: "text-red-500",
+                bg: "bg-red-50",
+                border: "border-red-200",
+                subtitle: "Validation de Conformité HDS & ISO 27001",
+                content: `
+                    <div class="space-y-6">
+                        <div class="bg-red-50 p-4 rounded border-l-4 border-red-500">
+                            <p class="text-xs font-bold text-red-600 mb-1 uppercase tracking-wide">Mission Principale</p>
+                            <p class="text-gray-700 text-sm leading-relaxed">Contrôle systématiquement toute demande d'action critique (L2/L3) provenant des autres agents. Agit comme un pare-feu logique et éthique.</p>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-6">
+                            <div>
+                                <h4 class="text-xs font-bold text-gray-400 uppercase mb-3 tracking-wider">Sources de Contrôle (RAG)</h4>
+                                <ul class="text-sm space-y-3 text-gray-600">
+                                    <li class="flex items-center"><i class="fas fa-file-contract w-5 text-red-500 mr-2"></i> SLA & Contrats Clients</li>
+                                    <li class="flex items-center"><i class="fas fa-lock w-5 text-red-500 mr-2"></i> Normes ISO 27001</li>
+                                    <li class="flex items-center"><i class="fas fa-clock w-5 text-red-500 mr-2"></i> Fenêtres de maintenance</li>
+                                    <li class="flex items-center"><i class="fas fa-user-lock w-5 text-red-500 mr-2"></i> Matrice d'escalade</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <h4 class="text-xs font-bold text-gray-400 uppercase mb-3 tracking-wider">Processus de Décision</h4>
+                                <ul class="text-sm space-y-3 text-gray-600">
+                                    <li class="flex items-center"><i class="fas fa-check-circle w-5 text-green-500 mr-2"></i> <strong>APPROVED :</strong> Action autorisée</li>
+                                    <li class="flex items-center"><i class="fas fa-ban w-5 text-red-500 mr-2"></i> <strong>DENIED :</strong> Violation détectée</li>
+                                    <li class="flex items-center"><i class="fas fa-user-tie w-5 text-yellow-500 mr-2"></i> <strong>ESCALATE :</strong> Validation humaine requise (N4)</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                `
+            },
+            'sentinel': {
+                title: "AGENT SENTINEL (Le Veilleur)",
+                icon: "fa-radar",
+                color: "text-green-500",
+                bg: "bg-green-50",
+                border: "border-green-200",
+                subtitle: "Surveillance Proactive & Diagnostic Réseau",
+                content: `
+                    <div class="space-y-6">
+                        <div class="bg-green-50 p-4 rounded border-l-4 border-green-500">
+                            <p class="text-xs font-bold text-green-600 mb-1 uppercase tracking-wide">Mission Principale</p>
+                            <p class="text-gray-700 text-sm leading-relaxed">Analyse les alertes Observium en temps réel pour déterminer la responsabilité (WIDIP / FAI / CLIENT) avant d'alerter un technicien.</p>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 gap-4">
+                            <div>
+                                <h4 class="text-xs font-bold text-gray-400 uppercase mb-3 tracking-wider">Workflow de Diagnostic</h4>
+                                <div class="flex items-center text-xs text-gray-600 space-x-2 bg-gray-50 p-3 rounded border border-gray-200">
+                                    <span class="bg-white px-2 py-1 rounded border border-gray-300 shadow-sm">Alerte</span>
+                                    <i class="fas fa-arrow-right text-gray-400"></i>
+                                    <span class="bg-white px-2 py-1 rounded border border-gray-300 shadow-sm">Analyse Device</span>
+                                    <i class="fas fa-arrow-right text-gray-400"></i>
+                                    <span class="bg-white px-2 py-1 rounded border border-gray-300 shadow-sm">Historique</span>
+                                    <i class="fas fa-arrow-right text-gray-400"></i>
+                                    <span class="bg-green-100 text-green-600 border border-green-200 px-2 py-1 rounded shadow-sm font-bold">Verdict</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h4 class="text-xs font-bold text-gray-400 uppercase mb-3 tracking-wider">Outils MCP Utilisés</h4>
+                            <div class="flex flex-wrap gap-2">
+                                <span class="text-xs bg-gray-100 text-gray-600 border border-gray-200 px-2 py-1 rounded font-mono">get_device_metrics</span>
+                                <span class="text-xs bg-gray-100 text-gray-600 border border-gray-200 px-2 py-1 rounded font-mono">search_client</span>
+                                <span class="text-xs bg-gray-100 text-gray-600 border border-gray-200 px-2 py-1 rounded font-mono">get_device_history</span>
+                                <span class="text-xs bg-gray-100 text-gray-600 border border-gray-200 px-2 py-1 rounded font-mono">reboot_device (Via Safeguard)</span>
+                            </div>
+                        </div>
+                    </div>
+                `
+            },
+            'support': {
+                title: "AGENT SUPPORT (L'Assistant)",
+                icon: "fa-headset",
+                color: "text-purple-500",
+                bg: "bg-purple-50",
+                border: "border-purple-200",
+                subtitle: "Gestion des Tickets GLPI (N0/N1)",
+                content: `
+                    <div class="space-y-6">
+                        <div class="bg-purple-50 p-4 rounded border-l-4 border-purple-500">
+                            <p class="text-xs font-bold text-purple-600 mb-1 uppercase tracking-wide">Mission Principale</p>
+                            <p class="text-gray-700 text-sm leading-relaxed">Traite automatiquement les tickets à faible valeur ajoutée (MDP, Déblocage) pour libérer le N1/N2 sur les incidents complexes.</p>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-6">
+                            <div>
+                                <h4 class="text-xs font-bold text-gray-400 uppercase mb-3 tracking-wider">Cas d'usage Automatisés</h4>
+                                <ul class="text-sm space-y-3 text-gray-600">
+                                    <li class="flex items-center"><i class="fas fa-key w-5 text-purple-500 mr-2"></i> Reset Mot de Passe (MySecret)</li>
+                                    <li class="flex items-center"><i class="fas fa-unlock w-5 text-purple-500 mr-2"></i> Déblocage Compte AD</li>
+                                    <li class="flex items-center"><i class="fas fa-envelope w-5 text-purple-500 mr-2"></i> Réponses Type Validées</li>
+                                    <li class="flex items-center"><i class="fas fa-user-plus w-5 text-purple-500 mr-2"></i> <strong>Création de Compte</strong> (Escalade)</li>
+                                    <li class="flex items-center"><i class="fas fa-user-shield w-5 text-purple-500 mr-2"></i> <strong>Gestion Privilèges</strong> (Safeguard)</li>
+                                </ul>
+                            </div>
+                             <div>
+                                <h4 class="text-xs font-bold text-gray-400 uppercase mb-3 tracking-wider">Matrice d'Action</h4>
+                                <ul class="text-sm space-y-3 text-gray-600">
+                                    <li class="flex items-center"><span class="w-2 h-2 rounded-full bg-green-400 mr-2"></span> <strong>L0/L1 :</strong> Exécution autonome</li>
+                                    <li class="flex items-center"><span class="w-2 h-2 rounded-full bg-yellow-400 mr-2"></span> <strong>L2/L3 :</strong> Demande Safeguard</li>
+                                    <li class="flex items-center"><span class="w-2 h-2 rounded-full bg-red-400 mr-2"></span> <strong>L4 :</strong> Escalade Humaine</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                `
+            },
+            'mcp': {
+                title: "SERVEUR MCP UNIFIÉ",
+                icon: "fa-network-wired",
+                color: "text-[#407BFE]",
+                bg: "bg-blue-50",
+                border: "border-blue-200",
+                subtitle: "Infrastructure d'Intégration",
+                content: `
+                    <div class="space-y-6">
+                        <div class="bg-blue-50 p-4 rounded border-l-4 border-[#407BFE]">
+                            <p class="text-xs font-bold text-blue-600 mb-1 uppercase tracking-wide">Architecture Technique</p>
+                            <p class="text-gray-700 text-sm leading-relaxed">Serveur Python unique exposant tous les outils de l'entreprise via le protocole standardisé MCP. Remplace les scripts dispersés.</p>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-3 text-sm">
+                            <div class="bg-white p-2 rounded border border-gray-200 flex items-center text-gray-700 shadow-sm"><i class="fas fa-ticket-alt w-6 text-gray-400"></i> API GLPI</div>
+                            <div class="bg-white p-2 rounded border border-gray-200 flex items-center text-gray-700 shadow-sm"><i class="fas fa-chart-line w-6 text-gray-400"></i> API Observium</div>
+                            <div class="bg-white p-2 rounded border border-gray-200 flex items-center text-gray-700 shadow-sm"><i class="fab fa-windows w-6 text-gray-400"></i> Active Directory</div>
+                            <div class="bg-white p-2 rounded border border-gray-200 flex items-center text-gray-700 shadow-sm"><i class="fas fa-envelope w-6 text-gray-400"></i> SMTP</div>
+                        </div>
+                        
+                        <div class="flex justify-between items-center border-t border-gray-200 pt-4">
+                            <div class="text-xs text-gray-500">
+                                <span class="font-bold text-[#00203D]">Port:</span> 8000
+                            </div>
+                            <div class="text-xs text-gray-500">
+                                <span class="font-bold text-[#00203D]">Stack:</span> Python / FastAPI / Docker
+                            </div>
+                        </div>
+                    </div>
+                `
+            },
+            'core': {
+                title: "CŒUR INTELLIGENCE",
+                icon: "fa-brain",
+                color: "text-pink-500",
+                bg: "bg-pink-50",
+                border: "border-pink-200",
+                subtitle: "Moteur Cognitif & Mémoire",
+                content: `
+                    <div class="space-y-6">
+                        <div class="grid grid-cols-2 gap-6">
+                            <div>
+                                <h4 class="text-xs font-bold text-gray-400 uppercase mb-3 border-b border-gray-200 pb-1">Moteur LLM</h4>
+                                <p class="text-lg font-bold text-[#00203D] mb-1">Devstral</p>
+                                <p class="text-xs text-gray-500">Mistral AI (Europe)</p>
+                                <ul class="mt-2 text-sm text-gray-600 list-disc list-inside">
+                                    <li><strong>Devstral 2 :</strong> Raisonnement</li>
+                                    <li><strong>Devstral Small :</strong> Vitesse</li>
+                                </ul>
+                            </div>
+                            
+                            <div>
+                                <h4 class="text-xs font-bold text-gray-400 uppercase mb-3 border-b border-gray-200 pb-1">Mémoire (RAG)</h4>
+                                <p class="text-lg font-bold text-[#00203D] mb-1">pgvector</p>
+                                <p class="text-xs text-gray-500">PostgreSQL</p>
+                                <ul class="mt-2 text-sm text-gray-600 list-disc list-inside">
+                                    <li>Procédures WIDIP</li>
+                                    <li>Historique Incidents</li>
+                                    <li>ISO 27001</li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-gray-50 p-3 rounded flex items-center justify-between border border-gray-200">
+                             <span class="text-sm font-bold text-gray-600">Cache & Rate Limit</span>
+                             <span class="text-xs font-mono text-red-600 bg-red-100 px-2 py-1 rounded font-bold">REDIS</span>
+                        </div>
+                    </div>
+                `
+            }
+        };
+
+        function openModal(id) {
+            const data = modalData[id];
+            const modal = document.getElementById('modal-backdrop');
+            const body = document.getElementById('modal-body');
+            
+            body.innerHTML = `
+                <div class="flex items-start gap-4 mb-6">
+                    <div class="p-4 ${data.bg} rounded-xl border ${data.border}">
+                        <i class="fas ${data.icon} text-3xl ${data.color}"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-2xl font-bold text-[#00203D] tracking-tight">${data.title}</h2>
+                        <p class="text-blue-500 text-xs uppercase tracking-wider font-bold mt-1">${data.subtitle}</p>
+                    </div>
+                </div>
+                ${data.content}
+            `;
+            
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('modal-backdrop').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>

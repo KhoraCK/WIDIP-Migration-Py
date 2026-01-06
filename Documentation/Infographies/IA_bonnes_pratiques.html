@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WIDIP - Guide Stratégique IA pour l'Équipe</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --widip-primary: #6366f1;
+            --widip-secondary: #8b5cf6;
+            --widip-accent: #06b6d4;
+            --widip-success: #10b981;
+            --widip-warning: #f59e0b;
+            --widip-danger: #ef4444;
+            --widip-dark: #1e1b4b;
+        }
+
+        * {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #e0f2fe 0%, #f0e6ff 50%, #fce7f3 100%);
+            min-height: 100vh;
+        }
+
+        .header-title {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.9);
+            box-shadow: 0 8px 32px rgba(99, 102, 241, 0.1);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .glass-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(99, 102, 241, 0.2);
+        }
+
+        .section-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 24px;
+            padding: 2rem;
+            border: 1px solid rgba(99, 102, 241, 0.1);
+            transition: all 0.4s ease;
+        }
+
+        .section-card:hover {
+            box-shadow: 0 25px 50px -12px rgba(99, 102, 241, 0.25);
+        }
+
+        .model-card {
+            background: white;
+            border-radius: 20px;
+            padding: 1.5rem;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .model-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--model-color);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+
+        .model-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .model-card:hover {
+            border-color: var(--model-color);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .kpi-number {
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--widip-primary), var(--widip-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .champion-badge {
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            color: white;
+            font-size: 0.65rem;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .table-header {
+            background: linear-gradient(135deg, var(--widip-primary), var(--widip-secondary));
+            color: white;
+        }
+
+        .table-row:nth-child(even) {
+            background: rgba(99, 102, 241, 0.03);
+        }
+
+        .table-row:hover {
+            background: rgba(99, 102, 241, 0.08);
+        }
+
+        .prompt-box {
+            background: linear-gradient(135deg, #1e1b4b, #312e81);
+            border-radius: 16px;
+            padding: 1.5rem;
+            font-family: 'Fira Code', 'Courier New', monospace;
+            color: #e2e8f0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .prompt-box::before {
+            content: '>';
+            position: absolute;
+            left: 1rem;
+            color: var(--widip-accent);
+            font-weight: bold;
+        }
+
+        .prompt-box.bad {
+            border-left: 4px solid var(--widip-danger);
+        }
+
+        .prompt-box.good {
+            border-left: 4px solid var(--widip-success);
+        }
+
+        .framework-step {
+            position: relative;
+            padding-left: 3rem;
+        }
+
+        .framework-step::before {
+            content: attr(data-step);
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 2rem;
+            height: 2rem;
+            background: linear-gradient(135deg, var(--widip-primary), var(--widip-secondary));
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.875rem;
+        }
+
+        .warning-card {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(249, 115, 22, 0.1));
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: 16px;
+            padding: 1.25rem;
+        }
+
+        .fade-in-up {
+            opacity: 0;
+            transform: translateY(30px);
+            animation: fadeInUp 0.6s ease forwards;
+        }
+
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .delay-1 {
+            animation-delay: 0.1s;
+        }
+
+        .delay-2 {
+            animation-delay: 0.2s;
+        }
+
+        .delay-3 {
+            animation-delay: 0.3s;
+        }
+
+        .delay-4 {
+            animation-delay: 0.4s;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(var(--widip-primary), var(--widip-secondary));
+            border-radius: 4px;
+        }
+
+        .tooltip {
+            position: relative;
+        }
+
+        .tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .tooltip-text {
+            visibility: hidden;
+            opacity: 0;
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--widip-dark);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            transition: all 0.2s ease;
+            z-index: 10;
+        }
+    </style>
+</head>
+
+<body class="text-gray-800 pb-12">
+    <!-- Header -->
+    <header class="py-8 px-6">
+        <div class="max-w-6xl mx-auto">
+            <div class="glass-card rounded-3xl p-8 fade-in-up">
+                <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+                    <div>
+                        <div class="flex items-center gap-3 mb-2">
+                            <div
+                                class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                                <i class="fas fa-brain text-white text-xl"></i>
+                            </div>
+                            <span
+                                class="px-3 py-1 bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-700 rounded-full text-sm font-medium">
+                                <i class="fas fa-sparkles mr-1"></i> Guide Interne
+                            </span>
+                        </div>
+                        <h1 class="header-title text-3xl md:text-4xl font-bold text-gray-900 mb-2">
+                            Guide Stratégique de l'IA
+                            <span
+                                class="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">pour
+                                l'Équipe</span>
+                        </h1>
+                        <p class="text-gray-600 max-w-xl">Guide pratique pour maîtriser les outils d'IA.</p>
+                    </div>
+                    <div class="flex flex-col items-end gap-3">
+                        <div class="flex items-center gap-2 text-sm text-gray-500">
+                            <i class="fas fa-calendar-alt"></i>
+                            <span>Décembre 2025</span>
+                        </div>
+                        <div class="flex gap-2">
+                            <span
+                                class="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-medium">IT</span>
+                            <span
+                                class="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">Juridique</span>
+                            <span
+                                class="px-3 py-1 bg-cyan-100 text-cyan-700 rounded-full text-xs font-medium">Économie</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation rapide -->
+    <nav class="px-6 mb-8">
+        <div class="max-w-6xl mx-auto">
+            <div class="flex flex-wrap justify-center gap-3">
+                <a href="#matrice"
+                    class="px-4 py-2 bg-white/80 hover:bg-white rounded-full text-sm font-medium text-gray-700 hover:text-indigo-600 transition-all shadow-sm hover:shadow-md">
+                    <i class="fas fa-table mr-2"></i>Matrice de Comparaison
+                </a>
+                <a href="#prompting"
+                    class="px-4 py-2 bg-white/80 hover:bg-white rounded-full text-sm font-medium text-gray-700 hover:text-purple-600 transition-all shadow-sm hover:shadow-md">
+                    <i class="fas fa-magic mr-2"></i>Art du Prompting
+                </a>
+                <a href="#personnalisation"
+                    class="px-4 py-2 bg-white/80 hover:bg-white rounded-full text-sm font-medium text-gray-700 hover:text-cyan-600 transition-all shadow-sm hover:shadow-md">
+                    <i class="fas fa-sliders-h mr-2"></i>Personnalisation
+                </a>
+                <a href="#limites"
+                    class="px-4 py-2 bg-white/80 hover:bg-white rounded-full text-sm font-medium text-gray-700 hover:text-amber-600 transition-all shadow-sm hover:shadow-md">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>Garde-fous
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="px-6 space-y-8">
+        <!-- SECTION 1 : Matrice de Comparaison -->
+        <section id="matrice" class="max-w-6xl mx-auto fade-in-up delay-1">
+            <div class="section-card">
+                <div class="flex items-center gap-3 mb-6">
+                    <div
+                        class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                        <i class="fas fa-chess-board text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <h2 class="header-title text-2xl font-bold text-gray-900">La Matrice de Comparaison</h2>
+                        <p class="text-gray-500 text-sm">Le meilleur outil pour chaque usage</p>
+                    </div>
+                </div>
+
+                <!-- Présentation des modèles - Usage de Prédilection -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                    <!-- Stratégie -->
+                    <div class="model-card group hover:bg-purple-50" style="--model-color: #8b5cf6;">
+                        <div class="flex items-start gap-4">
+                            <div
+                                class="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                                <i class="fas fa-chess-king text-purple-600 text-xl"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-900 text-lg">Haute Stratégie & Rédaction</h4>
+                                <div class="mt-2 text-sm text-gray-600 leading-relaxed">
+                                    <p class="font-semibold text-purple-700 mb-1">Modèle Recommandé</p>
+                                    <div class="flex items-center gap-2">
+                                        <span
+                                            class="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs font-bold">Claude
+                                            4.5 Opus</span>
+                                    </div>
+                                    <p class="mt-1 text-xs">Excellence juridique, économique, nuances fines.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Coding / IT -->
+                    <div class="model-card group hover:bg-violet-50" style="--model-color: #a78bfa;">
+                        <div class="flex items-start gap-4">
+                            <div
+                                class="w-12 h-12 rounded-xl bg-violet-100 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                                <i class="fas fa-terminal text-violet-600 text-xl"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-900 text-lg">Code & Flux IT Quotidien</h4>
+                                <div class="mt-2 text-sm text-gray-600 leading-relaxed">
+                                    <p class="font-semibold text-violet-700 mb-1">Modèle Recommandé</p>
+                                    <div class="flex items-center gap-2">
+                                        <span
+                                            class="bg-violet-100 text-violet-800 px-2 py-1 rounded text-xs font-bold">Claude
+                                            4.5 Sonnet</span>
+                                    </div>
+                                    <p class="mt-1 text-xs">Rapide, efficace, 77% SWE-bench.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Analyse Massive -->
+                    <div class="model-card group hover:bg-cyan-50" style="--model-color: #06b6d4;">
+                        <div class="flex items-start gap-4">
+                            <div
+                                class="w-12 h-12 rounded-xl bg-cyan-100 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                                <i class="fas fa-search text-cyan-600 text-xl"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-900 text-lg">Analyse Massive & Multimodale</h4>
+                                <div class="mt-2 text-sm text-gray-600 leading-relaxed">
+                                    <p class="font-semibold text-cyan-700 mb-1">Modèle Recommandé</p>
+                                    <div class="flex items-center gap-2">
+                                        <span
+                                            class="bg-cyan-100 text-cyan-800 px-2 py-1 rounded text-xs font-bold">Gemini
+                                            3 Pro</span>
+                                    </div>
+                                    <p class="mt-1 text-xs">1M tokens, vidéos 1h, PDF 2000 pages.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Logique Pure -->
+                    <div class="model-card group hover:bg-emerald-50" style="--model-color: #10b981;">
+                        <div class="flex items-start gap-4">
+                            <div
+                                class="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                                <i class="fas fa-brain text-emerald-600 text-xl"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-900 text-lg">Maths & Logique Pure</h4>
+                                <div class="mt-2 text-sm text-gray-600 leading-relaxed">
+                                    <p class="font-semibold text-emerald-700 mb-1">Modèle Recommandé</p>
+                                    <div class="flex items-center gap-2">
+                                        <span
+                                            class="bg-emerald-100 text-emerald-800 px-2 py-1 rounded text-xs font-bold">Gemini
+                                            3 Reasoning</span>
+                                    </div>
+                                    <p class="mt-1 text-xs">Architecture système, "Deep Thinking".</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Polyvalence -->
+                    <div class="model-card group hover:bg-amber-50" style="--model-color: #f59e0b;">
+                        <div class="flex items-start gap-4">
+                            <div
+                                class="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                                <i class="fas fa-robot text-amber-600 text-xl"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-900 text-lg">Polyvalence & Rapports</h4>
+                                <div class="mt-2 text-sm text-gray-600 leading-relaxed">
+                                    <p class="font-semibold text-amber-700 mb-1">Modèle Recommandé</p>
+                                    <div class="flex items-center gap-2">
+                                        <span
+                                            class="bg-amber-100 text-amber-800 px-2 py-1 rounded text-xs font-bold">GPT-5</span>
+                                    </div>
+                                    <p class="mt-1 text-xs">Agentivité native, équilibré partout.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 2 : L'Art du Prompting -->
+        <section id="prompting" class="max-w-6xl mx-auto fade-in-up delay-2">
+            <div class="section-card">
+                <div class="flex items-center gap-3 mb-6">
+                    <div
+                        class="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center">
+                        <i class="fas fa-magic text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <h2 class="header-title text-2xl font-bold text-gray-900">L'Art du Prompting</h2>
+                        <p class="text-gray-500 text-sm">La méthode R.C.C.E. pour des résultats optimaux</p>
+                    </div>
+                </div>
+
+                <!-- Framework RCCE -->
+                <div class="grid md:grid-cols-2 gap-8 mb-8">
+                    <div class="space-y-6">
+                        <div class="framework-step" data-step="R">
+                            <div class="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-4 ml-2">
+                                <h4 class="font-bold text-indigo-900 mb-1">Rôle (Persona)</h4>
+                                <p class="text-sm text-gray-600">Donnez une identité à l'IA : expert, consultant,
+                                    rédacteur...</p>
+                                <code
+                                    class="block mt-2 text-xs bg-white/80 px-3 py-2 rounded-lg text-indigo-700">"Tu es un avocat spécialisé en droit des contrats..."</code>
+                            </div>
+                        </div>
+                        <div class="framework-step" data-step="C">
+                            <div class="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4 ml-2">
+                                <h4 class="font-bold text-purple-900 mb-1">Contexte & Tâche</h4>
+                                <p class="text-sm text-gray-600">Expliquez la situation et ce que vous attendez
+                                    précisément.</p>
+                                <code
+                                    class="block mt-2 text-xs bg-white/80 px-3 py-2 rounded-lg text-purple-700">"Je dois réviser un contrat fournisseur de 15 pages..."</code>
+                            </div>
+                        </div>
+                        <div class="framework-step" data-step="C">
+                            <div class="bg-gradient-to-r from-pink-50 to-rose-50 rounded-xl p-4 ml-2">
+                                <h4 class="font-bold text-pink-900 mb-1">Contraintes</h4>
+                                <p class="text-sm text-gray-600">Précisez le format, le ton, la longueur souhaitée.</p>
+                                <code
+                                    class="block mt-2 text-xs bg-white/80 px-3 py-2 rounded-lg text-pink-700">"Format : tableau synthétique. Ton : professionnel."</code>
+                            </div>
+                        </div>
+                        <div class="framework-step" data-step="E">
+                            <div class="bg-gradient-to-r from-rose-50 to-orange-50 rounded-xl p-4 ml-2">
+                                <h4 class="font-bold text-rose-900 mb-1">Exemple</h4>
+                                <p class="text-sm text-gray-600">Montrez un modèle du résultat attendu si possible.</p>
+                                <code
+                                    class="block mt-2 text-xs bg-white/80 px-3 py-2 rounded-lg text-rose-700">"Voici un exemple de ce que j'attends : [...]"</code>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Avant / Après -->
+                    <div class="space-y-4">
+                        <h4 class="font-bold text-gray-900 flex items-center gap-2">
+                            <i class="fas fa-exchange-alt text-indigo-500"></i>
+                            Comparaison Avant / Après
+                        </h4>
+
+                        <div>
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center">
+                                    <i class="fas fa-times text-red-500 text-xs"></i>
+                                </span>
+                                <span class="text-sm font-medium text-red-700">Prompt médiocre</span>
+                            </div>
+                            <div class="prompt-box bad text-sm">
+                                <span class="pl-4 block">"Fais-moi un résumé du document."</span>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-2 ml-2">
+                                <i class="fas fa-arrow-right mr-1"></i> Trop vague : quel document ? Quel format ?
+                                Quelle longueur ?
+                            </p>
+                        </div>
+
+                        <div class="mt-4">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center">
+                                    <i class="fas fa-check text-emerald-500 text-xs"></i>
+                                </span>
+                                <span class="text-sm font-medium text-emerald-700">Prompt excellent</span>
+                            </div>
+                            <div class="prompt-box good text-sm leading-relaxed">
+                                <span class="pl-4 block">
+                                    "<strong class="text-cyan-400">[R]</strong> Tu es un analyste juridique senior.<br>
+                                    <strong class="text-cyan-400">[C]</strong> Je te fournis un contrat de prestation IT
+                                    de 20 pages. Identifie les clauses à risque (responsabilité, pénalités,
+                                    résiliation).<br>
+                                    <strong class="text-cyan-400">[C]</strong> Format : tableau avec 3 colonnes (Clause
+                                    | Risque | Recommandation). Max 10 lignes.<br>
+                                    <strong class="text-cyan-400">[E]</strong> Exemple de ligne : 'Art. 5.2 | Pénalités
+                                    illimitées | Plafonner à 15% du contrat'."
+                                </span>
+                            </div>
+                            <p class="text-xs text-emerald-600 mt-2 ml-2">
+                                <i class="fas fa-star mr-1"></i> Résultat : réponse structurée, actionnable et
+                                pertinente.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tips rapides -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-indigo-50 rounded-xl p-4 text-center">
+                        <div class="w-10 h-10 mx-auto mb-2 rounded-lg bg-indigo-100 flex items-center justify-center">
+                            <i class="fas fa-bullseye text-indigo-600"></i>
+                        </div>
+                        <p class="text-xs font-medium text-indigo-900">Soyez<br><strong>spécifique</strong></p>
+                    </div>
+                    <div class="bg-purple-50 rounded-xl p-4 text-center">
+                        <div class="w-10 h-10 mx-auto mb-2 rounded-lg bg-purple-100 flex items-center justify-center">
+                            <i class="fas fa-list-ol text-purple-600"></i>
+                        </div>
+                        <p class="text-xs font-medium text-purple-900">Décomposez en<br><strong>étapes</strong></p>
+                    </div>
+                    <div class="bg-pink-50 rounded-xl p-4 text-center">
+                        <div class="w-10 h-10 mx-auto mb-2 rounded-lg bg-pink-100 flex items-center justify-center">
+                            <i class="fas fa-redo text-pink-600"></i>
+                        </div>
+                        <p class="text-xs font-medium text-pink-900">Itérez et<br><strong>affinez</strong></p>
+                    </div>
+                    <div class="bg-cyan-50 rounded-xl p-4 text-center">
+                        <div class="w-10 h-10 mx-auto mb-2 rounded-lg bg-cyan-100 flex items-center justify-center">
+                            <i class="fas fa-question-circle text-cyan-600"></i>
+                        </div>
+                        <p class="text-xs font-medium text-cyan-900">Demandez de<br><strong>clarifier</strong></p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 3 : Personnalisation & Projets -->
+        <section id="personnalisation" class="max-w-6xl mx-auto fade-in-up delay-3">
+            <div class="section-card">
+                <div class="flex items-center gap-3 mb-6">
+                    <div
+                        class="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+                        <i class="fas fa-sliders-h text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <h2 class="header-title text-2xl font-bold text-gray-900">Personnalisation & Projets</h2>
+                        <p class="text-gray-500 text-sm">Créez votre assistant sur-mesure, une seule fois</p>
+                    </div>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-6">
+                    <!-- Custom Instructions -->
+                    <div class="bg-gradient-to-br from-cyan-50 to-blue-50 rounded-2xl p-6 border border-cyan-100">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 rounded-xl bg-cyan-100 flex items-center justify-center">
+                                <i class="fas fa-user-cog text-cyan-600"></i>
+                            </div>
+                            <h4 class="font-bold text-gray-900">Instructions Personnalisées</h4>
+                        </div>
+                        <p class="text-sm text-gray-600 mb-4">
+                            Définissez <strong>une fois pour toutes</strong> votre contexte métier. L'IA s'en souviendra
+                            à chaque conversation.
+                        </p>
+                        <div class="space-y-3">
+                            <div class="flex items-start gap-2">
+                                <i class="fas fa-check-circle text-cyan-500 mt-1"></i>
+                                <span class="text-sm text-gray-700">Votre rôle et département</span>
+                            </div>
+                            <div class="flex items-start gap-2">
+                                <i class="fas fa-check-circle text-cyan-500 mt-1"></i>
+                                <span class="text-sm text-gray-700">Vos préférences de format (tableau, bullet
+                                    points...)</span>
+                            </div>
+                            <div class="flex items-start gap-2">
+                                <i class="fas fa-check-circle text-cyan-500 mt-1"></i>
+                                <span class="text-sm text-gray-700">Le ton souhaité (formel, synthétique...)</span>
+                            </div>
+                        </div>
+                        <div class="mt-4 p-3 bg-white/70 rounded-lg border border-cyan-200">
+                            <p class="text-xs text-cyan-800 font-medium">
+                                <i class="fas fa-lightbulb mr-1"></i> Astuce : Accédez aux paramètres via l'icône <i
+                                    class="fas fa-cog"></i> en haut à droite de l'interface.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Projets -->
+                    <div class="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-2xl p-6 border border-purple-100">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
+                                <i class="fas fa-folder-open text-purple-600"></i>
+                            </div>
+                            <h4 class="font-bold text-gray-900">Projets & Bases de Connaissances</h4>
+                        </div>
+                        <p class="text-sm text-gray-600 mb-4">
+                            Créez des <strong>espaces dédiés</strong> avec leur propre contexte et documents de
+                            référence.
+                        </p>
+                        <div class="space-y-3">
+                            <div class="flex items-start gap-2">
+                                <i class="fas fa-upload text-purple-500 mt-1"></i>
+                                <span class="text-sm text-gray-700">Uploadez vos documents (PDF, Word, Excel...)</span>
+                            </div>
+                            <div class="flex items-start gap-2">
+                                <i class="fas fa-brain text-purple-500 mt-1"></i>
+                                <span class="text-sm text-gray-700">L'IA consulte automatiquement ces sources</span>
+                            </div>
+                            <div class="flex items-start gap-2">
+                                <i class="fas fa-lock text-purple-500 mt-1"></i>
+                                <span class="text-sm text-gray-700">Contexte isolé par projet</span>
+                            </div>
+                        </div>
+                        <div class="mt-4 p-3 bg-white/70 rounded-lg border border-purple-200">
+                            <p class="text-xs text-purple-800 font-medium">
+                                <i class="fas fa-folder-plus mr-1"></i> Exemple : Projet "Contrats 2025" avec tous vos
+                                modèles de contrats uploadés.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Workflow suggéré -->
+                <div class="mt-6 p-4 bg-gradient-to-r from-gray-50 to-slate-50 rounded-xl border border-gray-100">
+                    <h4 class="font-bold text-gray-900 mb-3 flex items-center gap-2">
+                        <i class="fas fa-route text-indigo-500"></i>
+                        Workflow recommandé
+                    </h4>
+                    <div class="flex flex-wrap items-center justify-center gap-2 text-sm">
+                        <span class="px-4 py-2 bg-white rounded-full border border-gray-200 shadow-sm">
+                            <span class="font-bold text-indigo-600">1.</span> Créer un Projet
+                        </span>
+                        <i class="fas fa-arrow-right text-gray-300"></i>
+                        <span class="px-4 py-2 bg-white rounded-full border border-gray-200 shadow-sm">
+                            <span class="font-bold text-purple-600">2.</span> Uploader les docs
+                        </span>
+                        <i class="fas fa-arrow-right text-gray-300"></i>
+                        <span class="px-4 py-2 bg-white rounded-full border border-gray-200 shadow-sm">
+                            <span class="font-bold text-pink-600">3.</span> Définir les instructions
+                        </span>
+                        <i class="fas fa-arrow-right text-gray-300"></i>
+                        <span class="px-4 py-2 bg-white rounded-full border border-gray-200 shadow-sm">
+                            <span class="font-bold text-emerald-600">4.</span> Utiliser !
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 4 : Garde-fous & Limites -->
+        <section id="limites" class="max-w-6xl mx-auto fade-in-up delay-4">
+            <div class="section-card">
+                <div class="flex items-center gap-3 mb-6">
+                    <div
+                        class="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-red-500 flex items-center justify-center">
+                        <i class="fas fa-exclamation-triangle text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <h2 class="header-title text-2xl font-bold text-gray-900">Garde-fous & Limites</h2>
+                        <p class="text-gray-500 text-sm">Points de vigilance critiques à connaître</p>
+                    </div>
+                </div>
+
+                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Hallucinations -->
+                    <div class="warning-card border-red-200 bg-red-50/50">
+                        <div class="flex items-center gap-3 mb-3">
+                            <div class="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center">
+                                <i class="fas fa-ghost text-red-500"></i>
+                            </div>
+                            <h4 class="font-bold text-red-900">Danger d'Hallucination</h4>
+                        </div>
+                        <p class="text-sm text-gray-700 mb-3 font-semibold">
+                            ⚠️ "Si le contexte dépasse la limite de token, l'IA hallucinera les parties manquantes sans
+                            le dire."
+                        </p>
+                        <div class="bg-white/60 rounded-lg p-3 border border-red-100">
+                            <p class="text-xs text-gray-600 italic">
+                                L'output est aussi limité : l'IA peut s'arrêter au milieu d'une phrase si elle dépasse
+                                son quota de génération.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Confidentialité -->
+                    <div class="warning-card">
+                        <div class="flex items-center gap-3 mb-3">
+                            <div class="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
+                                <i class="fas fa-user-secret text-amber-600"></i>
+                            </div>
+                            <h4 class="font-bold text-amber-900">Confidentialité</h4>
+                        </div>
+                        <p class="text-sm text-gray-700 mb-3">
+                            <strong>Ne jamais partager</strong> de données sensibles ou personnelles identifiables (PI).
+                        </p>
+                        <ul class="text-xs text-gray-600 space-y-1 list-disc list-inside bg-white/50 p-2 rounded">
+                            <li>Numéros sécurité sociale</li>
+                            <li>Données patients/clients</li>
+                            <li>Mots de passe, clés API</li>
+                        </ul>
+                    </div>
+
+                    <!-- Règle d'or (Moves here for layout balance) -->
+                    <div
+                        class="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl p-5 text-white flex flex-col justify-center">
+                        <div class="flex items-center gap-3 mb-2">
+                            <i class="fas fa-gem text-xl text-yellow-300"></i>
+                            <h4 class="font-bold text-lg">La Règle d'Or</h4>
+                        </div>
+                        <p class="text-sm text-white/90 leading-relaxed">
+                            L'IA est un <strong>assistant puissant</strong>, pas un expert infaillible.
+                            <br><span class="opacity-80 text-xs mt-1 block">Votre jugement professionnel reste le filtre
+                                final.</span>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- NEW SECTION: La Réalité des Tokens -->
+                <div class="mt-8">
+                    <h3 class="font-bold text-gray-900 text-lg mb-4 flex items-center gap-2">
+                        <i class="fas fa-coins text-yellow-500"></i> La Réalité des Tokens
+                    </h3>
+                    <div class="overflow-x-auto rounded-2xl border border-gray-100 shadow-sm bg-white">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50 text-gray-700">
+                                <tr>
+                                    <th class="px-4 py-3 text-left font-semibold">Modèle</th>
+                                    <th class="px-4 py-3 text-left font-semibold">Input Max (Contexte)</th>
+                                    <th class="px-4 py-3 text-left font-semibold">Output Max (Génération)</th>
+                                    <th
+                                        class="px-4 py-3 text-left font-semibold text-xs uppercase tracking-wider text-gray-500">
+                                        Équivalence Input (approx.)</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                <tr class="hover:bg-gray-50 transition-colors">
+                                    <td class="px-4 py-3 font-medium text-purple-700">Claude 4.5 Opus</td>
+                                    <td class="px-4 py-3">200 000 tokens</td>
+                                    <td class="px-4 py-3">128 000 tokens</td>
+                                    <td class="px-4 py-3 text-gray-500 text-xs">~150k mots / 300 pages</td>
+                                </tr>
+                                <tr class="hover:bg-gray-50 transition-colors">
+                                    <td class="px-4 py-3 font-medium text-violet-700">Claude 4.5 Sonnet</td>
+                                    <td class="px-4 py-3">200 000 tokens</td>
+                                    <td class="px-4 py-3">16 384 tokens</td>
+                                    <td class="px-4 py-3 text-gray-500 text-xs">~150k mots / 300 pages</td>
+                                </tr>
+                                <tr class="hover:bg-gray-50 transition-colors">
+                                    <td class="px-4 py-3 font-medium text-blue-700">Gemini 3 Pro</td>
+                                    <td class="px-4 py-3 font-bold text-green-600">1 000 000 tokens</td>
+                                    <td class="px-4 py-3">65 536 tokens</td>
+                                    <td class="px-4 py-3 text-gray-500 text-xs">~750k mots / 1500 pages</td>
+                                </tr>
+                                <tr class="hover:bg-gray-50 transition-colors">
+                                    <td class="px-4 py-3 font-medium text-emerald-700">Gemini 3 Reasoning</td>
+                                    <td class="px-4 py-3 font-bold text-green-600">1 000 000 tokens</td>
+                                    <td class="px-4 py-3">65 536 tokens</td>
+                                    <td class="px-4 py-3 text-gray-500 text-xs">~750k mots / 1500 pages</td>
+                                </tr>
+                                <tr class="hover:bg-gray-50 transition-colors">
+                                    <td class="px-4 py-3 font-medium text-amber-600">GPT-5</td>
+                                    <td class="px-4 py-3">400 000 tokens</td>
+                                    <td class="px-4 py-3">128 000 tokens</td>
+                                    <td class="px-4 py-3 text-gray-500 text-xs">~300k mots / 600 pages</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-2 text-right">* Estimation : 1 page A4 ≈ 500 mots ≈ 660 tokens
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <section class="max-w-6xl mx-auto">
+            <div class="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 rounded-3xl p-8 text-white">
+                <div class="text-center mb-8">
+                    <h2 class="header-title text-3xl font-bold mb-2">En résumé</h2>
+                    <p class="text-white/80">Vos 4 piliers pour maîtriser l'IA</p>
+                </div>
+                <div class="grid md:grid-cols-4 gap-6">
+                    <div class="text-center p-4 bg-white/10 rounded-2xl backdrop-blur-sm">
+                        <div class="w-14 h-14 mx-auto mb-3 rounded-2xl bg-white/20 flex items-center justify-center">
+                            <i class="fas fa-chess-board text-2xl"></i>
+                        </div>
+                        <p class="font-bold text-lg">Choisir le bon modèle</p>
+                        <p class="text-sm text-white/70">Selon votre cas d'usage</p>
+                    </div>
+                    <div class="text-center p-4 bg-white/10 rounded-2xl backdrop-blur-sm">
+                        <div class="w-14 h-14 mx-auto mb-3 rounded-2xl bg-white/20 flex items-center justify-center">
+                            <i class="fas fa-magic text-2xl"></i>
+                        </div>
+                        <p class="font-bold text-lg">Méthode R.C.C.E.</p>
+                        <p class="text-sm text-white/70">Prompts structurés</p>
+                    </div>
+                    <div class="text-center p-4 bg-white/10 rounded-2xl backdrop-blur-sm">
+                        <div class="w-14 h-14 mx-auto mb-3 rounded-2xl bg-white/20 flex items-center justify-center">
+                            <i class="fas fa-sliders-h text-2xl"></i>
+                        </div>
+                        <p class="font-bold text-lg">Personnaliser</p>
+                        <p class="text-sm text-white/70">Projets & instructions</p>
+                    </div>
+                    <div class="text-center p-4 bg-white/10 rounded-2xl backdrop-blur-sm">
+                        <div class="w-14 h-14 mx-auto mb-3 rounded-2xl bg-white/20 flex items-center justify-center">
+                            <i class="fas fa-shield-alt text-2xl"></i>
+                        </div>
+                        <p class="font-bold text-lg">Rester vigilant</p>
+                        <p class="text-sm text-white/70">Vérifier, ne pas exposer</p>
+                    </div>
+                </div>
+                <div class="mt-8 text-center">
+                    <p class="text-white/60 text-sm">Document WIDIP - Guide Stratégique IA v1.0 • Décembre 2025 • Usage
+                        interne</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // Smooth scroll pour la navigation
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href'))?.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            });
+        });
+
+        // Animation au scroll
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.fade-in-up').forEach(el => {
+            observer.observe(el);
+        });
+    </script>
+</body>
+
+</html>

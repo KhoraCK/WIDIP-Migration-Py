@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WIDIP IA V12 - Présentation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide-react@0.292.0/dist/umd/lucide-react.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        /* Custom scrollbar for modals if needed */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        html,
+        body,
+        #root {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .animate-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+    </style>
+</head>
+
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- ICONS (Subset of Lucide for offline support if needed, but using CDN above) ---
+        // For consistency with V11, we will use the custom createIcon function to ensure no dependency issues
+        // if the CDN is slow or blocked, but actually V11 used both. We will trust the CDN/Script logic 
+        // but re-implement the createIcon helper just in case we need custom shapes.
+
+        const createIcon = (paths, circle = null, rect = null, rect2 = null) => ({ size = 24, color = "currentColor", ...props }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+                {circle && <circle cx={circle.cx} cy={circle.cy} r={circle.r} />}
+                {rect && <rect x={rect.x} y={rect.y} width={rect.w} height={rect.h} rx={rect.r} ry={rect.r} />}
+                {rect2 && <rect x={rect2.x} y={rect2.y} width={rect2.w} height={rect2.h} rx={rect2.r} ry={rect2.r} />}
+                {paths.map((d, i) => <path key={i} d={d} />)}
+            </svg>
+        );
+
+        // Mapping common Lucide icons 
+        const lucide = {
+            ChevronLeft: createIcon(["m15 18-6-6 6-6"]),
+            ChevronRight: createIcon(["m9 18 6-6-6-6"]),
+            Shield: createIcon(["M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"]),
+            Zap: createIcon(["M13 2 3 14h9l-1 8 10-12h-9l1-8z"]),
+            Headphones: createIcon(["M3 14v3a2 2 0 0 0 2 2h2v-5H3a2 2 0 0 1 2-2 7 7 0 1 1 14 0 2 2 0 0 1 2 2h-4v5h2a2 2 0 0 0 2-2v-3a9 9 0 0 0-18 0"]),
+            AlertTriangle: createIcon(["M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z", "M12 9v4", "M12 17h.01"]),
+            Building2: createIcon(["M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z", "M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2", "M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2", "M10 6h4", "M10 10h4", "M10 14h4", "M10 18h4"]),
+            Server: createIcon(["M2 14h20", "M2 6h20", "M6 6v12"], null, { x: 2, y: 2, w: 20, h: 8, r: 2 }),
+            Database: createIcon(["M3 5V19A9 3 0 0 0 21 19V5", "M3 12A9 3 0 0 0 21 12"], { cx: 12, cy: 5, r: 3 }),
+            Brain: createIcon(["M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z", "M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z"]),
+            Lock: createIcon(["M7 11V7a5 5 0 0 1 10 0v4"], null, { x: 3, y: 11, w: 18, h: 11, r: 2 }),
+            CheckCircle2: createIcon(["M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z", "m9 12 2 2 4-4"]),
+            XCircle: createIcon(["M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z", "m15 9-6 6", "m9 9 6 6"]),
+            Clock: createIcon(["M12 6v6l4 2"], { cx: 12, cy: 12, r: 10 }),
+            Users: createIcon(["M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2", "M22 21v-2a4 4 0 0 0-3-3.87", "M16 3.13a4 4 0 0 1 0 7.75"], { cx: 9, cy: 7, r: 4 }),
+            ArrowRight: createIcon(["M5 12h14", "m12 5 7 7-7 7"]),
+            ArrowDown: createIcon(["M12 5v14", "m19 12-7 7-7-7"]),
+            Play: createIcon(["M5 3l14 9-14 9V3z"]),
+            Pause: createIcon(["M6 4h4v16H6z", "M14 4h4v16h-4z"]),
+            Layout: createIcon(["M3 3h18v18H3z", "M3 9h18", "M9 21V9"]),
+            FileText: createIcon(["M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z", "M14 2v6h6", "M16 13H8", "M16 17H8", "M10 9H8"]),
+            Settings: createIcon(["M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"], { cx: 12, cy: 12, r: 3 }),
+            Activity: createIcon(["M22 12h-4l-3 9L9 3l-3 9H2"]),
+            Eye: createIcon(["M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"], { cx: 12, cy: 12, r: 3 }),
+            Network: createIcon(["M12 20a2 2 0 1 0 0 4 2 2 0 0 0 0-4", "M5 9a2 2 0 1 0 0 4 2 2 0 0 0 0-4", "M19 9a2 2 0 1 0 0 4 2 2 0 0 0 0-4", "M5 2v7", "M12 12v8", "M19 2v7", "M12 12H5", "M12 12h7"]),
+            Target: createIcon(["M12 2a10 10 0 1 0 10 10", "M12 6a6 6 0 1 0 6 6", "M12 10a2 2 0 1 0 2 2"]),
+            Sparkles: createIcon(["m12 3-1.9 5.8a2 2 0 0 1-1.2 1.2L3 12l5.8 1.9a2 2 0 0 1 1.2 1.2L12 21l1.9-5.8a2 2 0 0 1 1.2-1.2L21 12l-5.8-1.9a2 2 0 0 1-1.2-1.2L12 3z", "m5 5-2 2 2 2 2-2-2-2z"]),
+            RefreshCw: createIcon(["M23 4v6h-6", "M1 20v-6h6", "M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"]),
+            BookOpen: createIcon(["M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z", "M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"]),
+            Workflow: createIcon(["M3 3h6v6H3z", "M15 15h6v6h-6z", "M14.5 9a2.5 2.5 0 0 0-2.5 2.5V15"]),
+            GitMerge: createIcon(["M18 15a3 3 0 0 1-6-3V9a3 3 0 0 0-3-3 3 3 0 1 0 0 6 3 3 0 0 0 5.82 1L15 12a3 3 0 0 1 6 3 3 3 0 1 0 0-6 3 3 0 0 0 0 6z"], { cx: 6, cy: 18, r: 3 }),
+            Search: createIcon(["m21 21-4.3-4.3"], { cx: 10, cy: 10, r: 7 })
+        };
+
+        const {
+            ChevronLeft, ChevronRight, Shield, Zap, Headphones,
+            AlertTriangle, Building2, Server, Database, Brain, Lock,
+            CheckCircle2, XCircle, Clock, Users, ArrowRight, ArrowDown,
+            Layout, FileText, Settings, Activity, Eye, Network,
+            Target, Sparkles, RefreshCw, BookOpen, Workflow, GitMerge, Search
+        } = lucide;
+
+        // ============================================
+        // WIDIP IA V12 - Présentation Interactive
+        // ============================================
+
+        function WIDIPPresentationV12() {
+            const [currentSlide, setCurrentSlide] = useState(0);
+            const [isAnimating, setIsAnimating] = useState(false);
+
+            const nextSlide = () => {
+                if (currentSlide < slides.length - 1 && !isAnimating) {
+                    setIsAnimating(true);
+                    setTimeout(() => { setCurrentSlide(p => p + 1); setIsAnimating(false); }, 500);
+                }
+            };
+
+            const prevSlide = () => {
+                if (currentSlide > 0 && !isAnimating) {
+                    setIsAnimating(true);
+                    setTimeout(() => { setCurrentSlide(p => p - 1); setIsAnimating(false); }, 500);
+                }
+            };
+
+            const goToSlide = (index) => {
+                if (!isAnimating && index !== currentSlide) {
+                    setIsAnimating(true);
+                    setTimeout(() => { setCurrentSlide(index); setIsAnimating(false); }, 500);
+                }
+            };
+
+            useEffect(() => {
+                const handleKeyDown = (e) => {
+                    if (e.key === 'ArrowRight' || e.key === ' ') nextSlide();
+                    if (e.key === 'ArrowLeft') prevSlide();
+                };
+                window.addEventListener('keydown', handleKeyDown);
+                return () => window.removeEventListener('keydown', handleKeyDown);
+            }, [currentSlide, isAnimating]);
+
+            const slides = [
+                <SlideTitle key="title" />,
+                <SlideContext key="context" />,
+                <SlideOverview key="overview" />,
+                <SlideWorkflowTheory key="wf-theory" />,
+                <SlideWorkflowAgents key="wf-agents" />,
+                <SlideAgentSentinel key="sentinel" />,
+                <SlideAgentSupport key="support" />,
+                <SlideAgentEnrichisseur key="enrichisseur" />,
+                <SlideSafeguard key="safeguard" />,
+                <SlideRAG key="rag" />,
+                <SlideStack key="stack" />,
+                <SlideInteractiveMap key="interactive" />,
+                <SlideConclusion key="conclusion" />
+            ];
+
+            return (
+                <div className="relative w-full h-screen overflow-hidden text-slate-800" style={{
+                    background: 'linear-gradient(135deg, #e8f4fc 0%, #c7d9f7 25%, #d4c7f7 50%, #f0d4f7 75%, #f7e4f0 100%)'
+                }}>
+                    <div className={`w-full h-full transition-all duration-500 ease-out ${isAnimating ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}>
+                        {slides[currentSlide]}
+                    </div>
+
+                    <div className="absolute bottom-0 left-0 right-0 bg-white/90 backdrop-blur-sm border-t border-gray-200 px-6 py-4 z-50">
+                        <div className="max-w-6xl mx-auto flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <div className="text-2xl font-black" style={{ color: '#407BFE' }}>wid<span style={{ color: '#00203D' }}>ip</span></div>
+                                <span className="text-xs text-gray-500 ml-2">IA Architecture V12</span>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                                {slides.map((_, i) => (
+                                    <button key={i} onClick={() => goToSlide(i)} className={`h-2.5 rounded-full transition-all duration-300 ${i === currentSlide ? 'w-8 bg-gradient-to-r from-blue-500 to-purple-500' : 'w-2.5 bg-gray-300 hover:bg-gray-400'}`} />
+                                ))}
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                                <button onClick={prevSlide} disabled={currentSlide === 0} className="p-2 rounded-full bg-white shadow-md disabled:opacity-30 hover:shadow-lg transition-all text-slate-900"><ChevronLeft size={24} /></button>
+                                <span className="text-sm font-medium text-slate-900 min-w-[3rem] text-center">{currentSlide + 1} / {slides.length}</span>
+                                <button onClick={nextSlide} disabled={currentSlide === slides.length - 1} className="p-2 rounded-full shadow-md disabled:opacity-30 hover:shadow-lg transition-all bg-blue-600 text-white"><ChevronRight size={24} /></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // ----------------------------------------------------------------------
+        // SLIDES CONTENT TO BE INJECTED BELOW
+        // ----------------------------------------------------------------------
+
+        // SLIDE 1: Titre
+        function SlideTitle() {
+            const [showElements, setShowElements] = useState(false);
+            useEffect(() => { setTimeout(() => setShowElements(true), 100); }, []);
+            return (
+                <div className="w-full h-full flex items-center justify-center p-8 pb-24">
+                    <div className="text-center">
+                        <div className={`transition-all duration-1000 ${showElements ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-10'}`}>
+                            <div className="inline-flex items-center justify-center w-24 h-24 rounded-2xl bg-white shadow-2xl mb-8">
+                                <Brain size={48} style={{ color: '#407BFE' }} />
+                            </div>
+                        </div>
+                        <h1 className={`text-6xl font-black mb-4 transition-all duration-1000 delay-200 ${showElements ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`} style={{ color: '#00203D' }}>
+                            WIDIP <span style={{ color: '#407BFE' }}>IA</span>
+                        </h1>
+                        <p className={`text-2xl font-light mb-8 transition-all duration-1000 delay-400 ${showElements ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`} style={{ color: '#00203D' }}>
+                            Architecture V12 — Système Intelligent pour le Support IT
+                        </p>
+                        <div className={`flex items-center justify-center gap-4 transition-all duration-1000 delay-600 ${showElements ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+                            {['Auto-Apprentissage', 'Sécurité Renforcée', 'Support 24/7'].map((tag) => (
+                                <span key={tag} className="px-4 py-2 bg-white/80 backdrop-blur rounded-full text-sm font-medium shadow-lg" style={{ color: '#00203D' }}>{tag}</span>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // SLIDE 2: Contexte (Same as V11)
+        function SlideContext() {
+            const stats = [
+                { icon: Building2, value: '~600', label: 'Établissements' },
+                { icon: Users, value: '~40', label: 'Groupes clients' },
+                { icon: FileText, value: '20 000', label: 'Tickets/an' },
+                { icon: Clock, value: '24/7', label: 'Continuité' }
+            ];
+            return (
+                <div className="w-full h-full flex items-center justify-center p-8 pb-24">
+                    <div className="max-w-5xl w-full">
+                        <div className="text-center mb-12">
+                            <span className="inline-block px-4 py-1 rounded-full text-sm font-medium mb-4 bg-blue-100 text-blue-600">Contexte</span>
+                            <h2 className="text-4xl font-bold text-slate-900">Une charge de support <span className="text-blue-600">massive</span></h2>
+                        </div>
+                        <div className="grid grid-cols-4 gap-6 mb-12">
+                            {stats.map((stat) => (
+                                <div key={stat.label} className="bg-white rounded-2xl p-6 shadow-lg hover:-translate-y-1 transition-transform text-center">
+                                    <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center mx-auto mb-4 text-blue-600"><stat.icon size={24} /></div>
+                                    <div className="text-3xl font-bold mb-1 text-slate-800">{stat.value}</div>
+                                    <div className="text-sm text-gray-500">{stat.label}</div>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="bg-white rounded-2xl p-8 shadow-lg text-center">
+                            <h3 className="text-lg font-semibold mb-6 text-slate-800">Le défi : Garantir la réactivité et la sécurité sur un parc hétérogène</h3>
+                            <div className="flex justify-center gap-8">
+                                <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-red-500"></div><span>EHPAD (Critique)</span></div>
+                                <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-orange-500"></div><span>Cliniques (HDS)</span></div>
+                                <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-blue-500"></div><span>Sièges Administratifs</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // SLIDE 3: Vue d'Ensemble V12
+        function SlideOverview() {
+            return (
+                <div className="w-full h-full flex items-center justify-center p-8 pb-24">
+                    <div className="max-w-6xl w-full">
+                        <div className="text-center mb-8">
+                            <span className="inline-block px-4 py-1 rounded-full text-sm font-medium mb-4 bg-purple-100 text-purple-600">Architecture V12</span>
+                            <h2 className="text-4xl font-bold text-slate-900">Vue d'Ensemble du Système</h2>
+                        </div>
+                        <div className="relative bg-white rounded-3xl p-10 shadow-xl border border-gray-100">
+                            {/* RAG TOP */}
+                            <div className="flex justify-center mb-8">
+                                <div className="bg-blue-600 text-white p-6 rounded-2xl shadow-lg w-96 text-center transform hover:scale-105 transition-transform">
+                                    <Database size={32} className="mx-auto mb-2" />
+                                    <h3 className="font-bold text-xl">RAG CENTRAL</h3>
+                                    <p className="text-sm opacity-80">Base de Connaissances Auto-Enrichie</p>
+                                    <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-4 h-4 bg-blue-600 rotate-45"></div>
+                                </div>
+                            </div>
+
+                            {/* AGENTS MIDDLE */}
+                            <div className="grid grid-cols-3 gap-6 relative">
+                                <div className="absolute top-0 left-0 w-full h-1 border-t-2 border-dashed border-gray-200 -mt-4"></div>
+                                <div className="bg-blue-50 p-6 rounded-xl border border-blue-100 text-center">
+                                    <h4 className="font-black text-blue-900 mb-1">SENTINEL</h4>
+                                    <div className="text-xs font-bold text-blue-500 tracking-wider mb-2">PROACTIF</div>
+                                    <p className="text-sm text-blue-800">Surveillance Réseau</p>
+                                </div>
+                                <div className="bg-emerald-50 p-6 rounded-xl border border-emerald-100 text-center">
+                                    <h4 className="font-black text-emerald-900 mb-1">SUPPORT</h4>
+                                    <div className="text-xs font-bold text-emerald-500 tracking-wider mb-2">RÉACTIF</div>
+                                    <p className="text-sm text-emerald-800">Tickets & Demandes</p>
+                                </div>
+                                <div className="bg-amber-50 p-6 rounded-xl border border-amber-100 text-center">
+                                    <h4 className="font-black text-amber-900 mb-1">ENRICHISSEUR</h4>
+                                    <div className="text-xs font-bold text-amber-500 tracking-wider mb-2">ÉVOLUTIF</div>
+                                    <p className="text-sm text-amber-800">Création Procédures</p>
+                                </div>
+                            </div>
+
+                            {/* SAFEGUARD */}
+                            <div className="flex justify-center my-8">
+                                <div className="bg-purple-600 text-white p-4 rounded-xl shadow-lg w-full max-w-2xl text-center relative z-10">
+                                    <div className="flex items-center justify-center gap-3">
+                                        <Shield size={24} />
+                                        <span className="font-bold text-lg">SAFEGUARD — Le Verrou Humain</span>
+                                    </div>
+                                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-4 h-4 bg-purple-600 rotate-45"></div>
+                                    <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-4 h-4 bg-purple-600 rotate-45"></div>
+                                </div>
+
+                            </div>
+
+                            {/* EXECUTION */}
+                            <div className="flex justify-center">
+                                <div className="bg-slate-800 text-white p-6 rounded-2xl w-full max-w-3xl text-center border-t-4 border-slate-600">
+                                    <h3 className="font-bold">GLPI + INFRASTRUCTURE</h3>
+                                    <p className="text-sm text-slate-400">Exécution des actions réelles</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // SLIDE 4: Workflow Theorie (NEW)
+        function SlideWorkflowTheory() {
+            return (
+                <div className="w-full h-full flex items-center justify-center p-8 pb-24">
+                    <div className="max-w-6xl w-full">
+                        <div className="text-center mb-12">
+                            <span className="inline-block px-4 py-1 rounded-full text-sm font-medium mb-4 bg-gray-200 text-gray-700">Pédagogie</span>
+                            <h2 className="text-4xl font-bold text-slate-900">Qu'est-ce qu'un <span className="text-blue-600">Workflow</span> ?</h2>
+                            <p className="text-lg text-slate-500 mt-2">La brique fondamentale de l'automatisation WIDIP</p>
+                        </div>
+
+                        <div className="bg-white rounded-3xl p-10 shadow-xl">
+                            <div className="flex items-center justify-between gap-4">
+                                <div className="flex flex-col items-center flex-1">
+                                    <div className="w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center text-yellow-600 mb-4 animate-[pulse_3s_infinite]"><Zap size={40} /></div>
+                                    <h3 className="font-bold text-lg mb-2">1. DÉCLENCHEUR</h3>
+                                    <p className="text-sm text-center text-gray-500">L'événement de départ<br />(ex: Alerte, Ticket, Email)</p>
+                                </div>
+                                <ArrowRight size={32} className="text-gray-300" />
+                                <div className="flex flex-col items-center flex-1">
+                                    <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 mb-4"><Brain size={40} /></div>
+                                    <h3 className="font-bold text-lg mb-2">2. INTELLIGENCE</h3>
+                                    <p className="text-sm text-center text-gray-500">Analyse de la situation<br />(RAG, Diag, Décision)</p>
+                                </div>
+                                <ArrowRight size={32} className="text-gray-300" />
+                                <div className="flex flex-col items-center flex-1">
+                                    <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 mb-4"><Shield size={40} /></div>
+                                    <h3 className="font-bold text-lg mb-2">3. CONTRÔLE</h3>
+                                    <p className="text-sm text-center text-gray-500">Validation de sécurité<br />(Safeguard)</p>
+                                </div>
+                                <ArrowRight size={32} className="text-gray-300" />
+                                <div className="flex flex-col items-center flex-1">
+                                    <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center text-green-600 mb-4"><CheckCircle2 size={40} /></div>
+                                    <h3 className="font-bold text-lg mb-2">4. ACTION</h3>
+                                    <p className="text-sm text-center text-gray-500">Résultat concret<br />(Ticket, Reset MDP, Reboot)</p>
+                                </div>
+                            </div>
+                            <div className="mt-12 bg-gray-50 p-6 rounded-xl border border-gray-200">
+                                <h4 className="font-bold flex items-center gap-2 mb-2"><Workflow size={20} className="text-blue-600" /> Le rôle de n8n</h4>
+                                <p className="text-sm text-gray-600">
+                                    Dans l'architecture V12, <strong>n8n</strong> est le chef d'orchestre. Il reçoit le déclencheur, appelle l'IA (pensez au "Cerveau"), vérifie avec Safeguard ("Le Gendarme"), et exécute l'action via GLPI ou les outils d'infrastructure.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // SLIDE 5: L'Articulation des Agents
+        function SlideWorkflowAgents() {
+            return (
+                <div className="w-full h-full flex items-center justify-center p-8 pb-24">
+                    <div className="max-w-6xl w-full">
+                        <div className="text-center mb-10">
+                            <h2 className="text-4xl font-bold text-slate-900">3 Agents = 3 Missions</h2>
+                            <p className="text-gray-500 mt-2">Chaque agent couvre un aspect spécifique du support</p>
+                        </div>
+                        <div className="grid grid-cols-3 gap-8">
+                            {/* SENTINEL */}
+                            <div className="bg-white rounded-2xl p-6 shadow-lg border-t-4 border-blue-500 hover:shadow-xl transition-shadow">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="bg-blue-100 p-3 rounded-lg text-blue-600"><Eye size={24} /></div>
+                                    <div>
+                                        <h3 className="font-bold text-lg">SENTINEL</h3>
+                                        <div className="text-xs text-uppercase font-bold text-gray-400">PROACTIF</div>
+                                    </div>
+                                </div>
+                                <p className="text-sm text-gray-600 mb-4 h-20">"Je vois les problèmes avant qu'ils n'arrivent."</p>
+                                <ul className="text-sm space-y-2 bg-blue-50 p-4 rounded-xl">
+                                    <li className="flex gap-2"><ArrowRight size={16} className="text-blue-500 shrink-0" /><span>Monitore Observium</span></li>
+                                    <li className="flex gap-2"><ArrowRight size={16} className="text-blue-500 shrink-0" /><span>Diagnostique les pannes</span></li>
+                                    <li className="flex gap-2"><ArrowRight size={16} className="text-blue-500 shrink-0" /><span>Ouvre les tickets</span></li>
+                                </ul>
+                            </div>
+
+                            {/* SUPPORT */}
+                            <div className="bg-white rounded-2xl p-6 shadow-lg border-t-4 border-emerald-500 hover:shadow-xl transition-shadow">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="bg-emerald-100 p-3 rounded-lg text-emerald-600"><Headphones size={24} /></div>
+                                    <div>
+                                        <h3 className="font-bold text-lg">SUPPORT</h3>
+                                        <div className="text-xs text-uppercase font-bold text-gray-400">RÉACTIF</div>
+                                    </div>
+                                </div>
+                                <p className="text-sm text-gray-600 mb-4 h-20">"J'aide les techniciens à résoudre les tickets plus vite."</p>
+                                <ul className="text-sm space-y-2 bg-emerald-50 p-4 rounded-xl">
+                                    <li className="flex gap-2"><ArrowRight size={16} className="text-emerald-500 shrink-0" /><span>Analyse tickets entrants</span></li>
+                                    <li className="flex gap-2"><ArrowRight size={16} className="text-emerald-500 shrink-0" /><span>Cherche solutions RAG</span></li>
+                                    <li className="flex gap-2"><ArrowRight size={16} className="text-emerald-500 shrink-0" /><span>Suggère/Applique fix</span></li>
+                                </ul>
+                            </div>
+
+                            {/* ENRICHISSEUR */}
+                            <div className="bg-white rounded-2xl p-6 shadow-lg border-t-4 border-amber-500 hover:shadow-xl transition-shadow">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="bg-amber-100 p-3 rounded-lg text-amber-600"><BookOpen size={24} /></div>
+                                    <div>
+                                        <h3 className="font-bold text-lg">ENRICHISSEUR</h3>
+                                        <div className="text-xs text-uppercase font-bold text-gray-400">ÉVOLUTIF</div>
+                                    </div>
+                                </div>
+                                <p className="text-sm text-gray-600 mb-4 h-20">"J'apprends de vos succès pour les partager."</p>
+                                <ul className="text-sm space-y-2 bg-amber-50 p-4 rounded-xl">
+                                    <li className="flex gap-2"><ArrowRight size={16} className="text-amber-500 shrink-0" /><span>Lit tickets résolus</span></li>
+                                    <li className="flex gap-2"><ArrowRight size={16} className="text-amber-500 shrink-0" /><span>Extrait la méthode</span></li>
+                                    <li className="flex gap-2"><ArrowRight size={16} className="text-amber-500 shrink-0" /><span>Crée procédure RAG</span></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // SLIDE 6: Workflow Sentinel Details
+        function SlideAgentSentinel() {
+            return (
+                <div className="w-full h-full flex items-center justify-center p-8 pb-24">
+                    <div className="max-w-6xl w-full">
+                        <div className="flex items-center justify-between mb-8">
+                            <div>
+                                <span className="inline-block px-4 py-1 rounded-full text-sm font-medium mb-4 bg-blue-100 text-blue-600">Workflow Détaillé</span>
+                                <h2 className="text-4xl font-bold text-blue-900">Agent <span className="text-blue-500">SENTINEL</span></h2>
+                                <p className="text-gray-500">Automatisation de la surveillance infrastructure</p>
+                            </div>
+                            <div className="w-16 h-16 bg-blue-500 rounded-2xl flex items-center justify-center text-white shadow-lg"><Eye size={32} /></div>
+                        </div>
+
+                        <div className="bg-white p-8 rounded-3xl shadow-xl border border-gray-100">
+                            <div className="flex items-center justify-between relative">
+                                {/* Steps */}
+                                <div className="z-10 bg-white p-4 rounded-xl border-2 border-blue-100 w-64 text-center">
+                                    <div className="text-xs font-bold text-gray-400 mb-2">TRIGGER</div>
+                                    <div className="font-bold text-blue-700">Alerte Observium</div>
+                                    <div className="text-xs text-gray-500 mt-1">Ping / Port / Service Down</div>
+                                </div>
+                                <ArrowRight className="text-gray-300" />
+
+                                <div className="z-10 bg-white p-4 rounded-xl border-2 border-blue-500 w-64 text-center shadow-lg transform scale-110">
+                                    <div className="text-xs font-bold text-gray-400 mb-2">INTELLIGENCE</div>
+                                    <div className="font-bold text-blue-700">Diagnostic</div>
+                                    <ul className="text-xs text-left mt-2 space-y-1 text-gray-600 pl-4 list-disc">
+                                        <li>C'est WIDIP ou FAI ?</li>
+                                        <li>Déjà un ticket ouvert ?</li>
+                                        <li>Impact client ?</li>
+                                    </ul>
+                                </div>
+                                <ArrowRight className="text-gray-300" />
+
+                                <div className="z-10 bg-white p-4 rounded-xl border-2 border-blue-100 w-64 text-center">
+                                    <div className="text-xs font-bold text-gray-400 mb-2">ACTION</div>
+                                    <div className="font-bold text-blue-700">Ticket GLPI</div>
+                                    <div className="text-xs text-gray-500 mt-1">+ Notification Technicien<br />+ SMS Astreinte (si critique)</div>
+                                </div>
+                            </div>
+
+                            <div className="mt-8 bg-blue-50 p-4 rounded-xl flex gap-4">
+                                <Activity className="text-blue-500 shrink-0" />
+                                <div>
+                                    <h4 className="font-bold text-blue-900">Exemple : Serveur EHPAD Down</h4>
+                                    <p className="text-sm text-blue-800">Sentinel détecte la coupure → Vérifie qu'il n'y a pas de maintenance en cours (RAG) → Vérifie si le lien internet est UP → Si internet UP et Serveur DOWN = Ticket "Urgence Serveur" assigné au N2.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // SLIDE 7: Workflow Support Details
+        function SlideAgentSupport() {
+            return (
+                <div className="w-full h-full flex items-center justify-center p-8 pb-24">
+                    <div className="max-w-6xl w-full">
+                        <div className="flex items-center justify-between mb-8">
+                            <div>
+                                <span className="inline-block px-4 py-1 rounded-full text-sm font-medium mb-4 bg-emerald-100 text-emerald-600">Workflow Détaillé</span>
+                                <h2 className="text-4xl font-bold text-emerald-900">Agent <span className="text-emerald-500">SUPPORT</span></h2>
+                                <p className="text-gray-500">Assistant intelligent pour les techniciens</p>
+                            </div>
+                            <div className="w-16 h-16 bg-emerald-500 rounded-2xl flex items-center justify-center text-white shadow-lg"><Headphones size={32} /></div>
+                        </div>
+
+                        <div className="bg-white p-8 rounded-3xl shadow-xl border border-gray-100">
+                            <div className="flex items-center justify-between relative">
+                                {/* Steps */}
+                                <div className="z-10 bg-white p-4 rounded-xl border-2 border-emerald-100 w-64 text-center">
+                                    <div className="text-xs font-bold text-gray-400 mb-2">TRIGGER</div>
+                                    <div className="font-bold text-emerald-700">Ticket #DIAG</div>
+                                    <div className="text-xs text-gray-500 mt-1">Nouveau ticket ou suivi</div>
+                                </div>
+                                <ArrowRight className="text-gray-300" />
+
+                                <div className="z-10 bg-white p-4 rounded-xl border-2 border-emerald-500 w-64 text-center shadow-lg transform scale-110">
+                                    <div className="text-xs font-bold text-gray-400 mb-2">INTELLIGENCE</div>
+                                    <div className="font-bold text-emerald-700">Analyse + RAG</div>
+                                    <ul className="text-xs text-left mt-2 space-y-1 text-gray-600 pl-4 list-disc">
+                                        <li>Comprend la demande</li>
+                                        <li>Cherche le contrat client</li>
+                                        <li>Cherche procédure résolution</li>
+                                    </ul>
+                                </div>
+                                <ArrowRight className="text-gray-300" />
+
+                                <div className="z-10 bg-white p-4 rounded-xl border-2 border-emerald-100 w-64 text-center">
+                                    <div className="text-xs font-bold text-gray-400 mb-2">ACTION</div>
+                                    <div className="font-bold text-emerald-700">Proposition / Fix</div>
+                                    <div className="text-xs text-gray-500 mt-1">Ajoute solution en privé<br />ou résout si autorisé (L1)</div>
+                                </div>
+                            </div>
+
+                            <div className="mt-8 bg-emerald-50 p-4 rounded-xl flex gap-4">
+                                <Zap className="text-emerald-500 shrink-0" />
+                                <div>
+                                    <h4 className="font-bold text-emerald-900">Exemple : Demande Reset Mot de Passe</h4>
+                                    <p className="text-sm text-emerald-800">Support lit le ticket → Vérifie l'identité du demandeur (RAG Contacts) → Vérifie les droits → Génère un MDP temporaire → Envoie la réponse → Clôture le ticket.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // SLIDE 8: Workflow Enrichisseur Details
+        function SlideAgentEnrichisseur() {
+            return (
+                <div className="w-full h-full flex items-center justify-center p-8 pb-24">
+                    <div className="max-w-6xl w-full">
+                        <div className="flex items-center justify-between mb-8">
+                            <div>
+                                <span className="inline-block px-4 py-1 rounded-full text-sm font-medium mb-4 bg-amber-100 text-amber-600">Workflow Détaillé</span>
+                                <h2 className="text-4xl font-bold text-amber-900">Agent <span className="text-amber-500">ENRICHISSEUR</span></h2>
+                                <p className="text-gray-500">L'amélioration continue et automatisée</p>
+                            </div>
+                            <div className="w-16 h-16 bg-amber-500 rounded-2xl flex items-center justify-center text-white shadow-lg"><BookOpen size={32} /></div>
+                        </div>
+
+                        <div className="bg-white p-8 rounded-3xl shadow-xl border border-gray-100">
+                            <div className="flex items-center justify-between relative">
+                                {/* Steps */}
+                                <div className="z-10 bg-white p-4 rounded-xl border-2 border-amber-100 w-64 text-center">
+                                    <div className="text-xs font-bold text-gray-400 mb-2">TRIGGER</div>
+                                    <div className="font-bold text-amber-700">Cron 18h00</div>
+                                    <div className="text-xs text-gray-500 mt-1">Analyse journée écoulée</div>
+                                </div>
+                                <ArrowRight className="text-gray-300" />
+
+                                <div className="z-10 bg-white p-4 rounded-xl border-2 border-amber-500 w-64 text-center shadow-lg transform scale-110">
+                                    <div className="text-xs font-bold text-gray-400 mb-2">INTELLIGENCE</div>
+                                    <div className="font-bold text-amber-700">Extraction</div>
+                                    <ul className="text-xs text-left mt-2 space-y-1 text-gray-600 pl-4 list-disc">
+                                        <li>Filtre tickets "Résolus"</li>
+                                        <li>Identifie Problème / Solution</li>
+                                        <li>Généralise le cas</li>
+                                    </ul>
+                                </div>
+                                <ArrowRight className="text-gray-300" />
+
+                                <div className="z-10 bg-white p-4 rounded-xl border-2 border-amber-100 w-64 text-center">
+                                    <div className="text-xs font-bold text-gray-400 mb-2">ACTION</div>
+                                    <div className="font-bold text-amber-700">Création Procédure</div>
+                                    <div className="text-xs text-gray-500 mt-1">Ajout dans le RAG<br />"Knowledge Base"</div>
+                                </div>
+                            </div>
+
+                            <div className="mt-8 bg-amber-50 p-4 rounded-xl flex gap-4">
+                                <Sparkles className="text-amber-500 shrink-0" />
+                                <div>
+                                    <h4 className="font-bold text-amber-900">Le Cercle Vertueux</h4>
+                                    <p className="text-sm text-amber-800">Un problème résolu aujourd'hui par un humain devient une procédure automatique pour l'IA demain. Le système devient plus intelligent chaque jour sans effort supplémentaire.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // SLIDE 9: Safeguard
+        function SlideSafeguard() {
+            const [level, setLevel] = useState(2);
+            const levels = [
+                { id: 0, title: "L0 - LECTURE", color: "bg-gray-400", desc: "Consultation simple (RAG, GLPI). Aucune validation requise." },
+                { id: 1, title: "L1 - MINEUR", color: "bg-green-500", desc: "Actions sans risque (Note privée ticket, Email). Validation Auto." },
+                { id: 2, title: "L2 - MODÉRÉ", color: "bg-blue-500", desc: "Changement d'état, Assignation. Validation Auto si confiance > 90%." },
+                { id: 3, title: "L3 - SENSIBLE", color: "bg-orange-500", desc: "Reboot service, Modif config. VALIDATION HUMAINE REQUISE." },
+                { id: 4, title: "L4 - CRITIQUE", color: "bg-red-600", desc: "Accès Admin, Suppression données. INTERDIT À L'AGENT." },
+            ];
+
+            return (
+                <div className="w-full h-full flex items-center justify-center p-8 pb-24">
+                    <div className="max-w-6xl w-full">
+                        <div className="text-center mb-10">
+                            <span className="inline-block px-4 py-1 rounded-full text-sm font-medium mb-4 bg-purple-100 text-purple-600">Sécurité</span>
+                            <h2 className="text-4xl font-bold text-slate-900">SAFEGUARD — Classification des Risques</h2>
+                            <p className="text-gray-500 mt-2">L'IA ne fait jamais rien de critique sans permission</p>
+                        </div>
+
+                        <div className="flex gap-4 items-stretch h-96">
+                            {/* Level Selector */}
+                            <div className="w-1/3 flex flex-col gap-2">
+                                {levels.map((l) => (
+                                    <button
+                                        key={l.id}
+                                        onClick={() => setLevel(l.id)}
+                                        className={`p-4 rounded-xl text-left transition-all border-2 ${level === l.id ? 'border-purple-500 bg-purple-50 shadow-md' : 'border-transparent bg-white hover:bg-gray-50'}`}
+                                    >
+                                        <div className="font-bold text-sm text-slate-700">{l.title}</div>
+                                        {level === l.id && <div className="text-xs text-purple-600 mt-1 font-medium">Sélectionné</div>}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* Level Display */}
+                            <div className="w-2/3 bg-white rounded-3xl shadow-xl overflow-hidden relative border border-gray-100 p-8 flex flex-col justify-center">
+                                <div className={`absolute top-0 left-0 w-full h-2 ${levels[level].color}`}></div>
+
+                                <div className="flex justify-center mb-6">
+                                    <div className={`w-20 h-20 rounded-2xl flex items-center justify-center text-white shadow-lg transition-colors duration-300 ${levels[level].color}`}>
+                                        <Shield size={40} />
+                                    </div>
+                                </div>
+
+                                <h3 className="text-3xl font-black text-center text-slate-800 mb-4">{levels[level].title}</h3>
+                                <p className="text-xl text-center text-gray-600 mb-8">{levels[level].desc}</p>
+
+                                <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                                    <h4 className="font-bold text-sm text-gray-500 uppercase mb-3">Exemple Concret</h4>
+                                    <div className="font-mono text-sm text-slate-700 bg-white p-3 rounded-lg border border-gray-200 shadow-inner">
+                                        {level === 0 && "Agent consulte la fiche client 'EHPAD Bellevue' pour trouver le contact."}
+                                        {level === 1 && "Agent ajoute un commentaire privé dans le ticket : 'J'analyse le problème'."}
+                                        {level === 2 && "Agent assigne le ticket au groupe 'N2 Réseau' car c'est complexe."}
+                                        {level === 3 && "Agent demande : 'Le serveur ne répond pas, puis-je le redémarrer ?' → [OUI/NON]"}
+                                        {level === 4 && "Agent détecte une corruption AD. Il escalade immédiatement à l'Expert Humain."}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // SLIDE 10: RAG (Base de Connaissances)
+        function SlideRAG() {
+            return (
+                <div className="w-full h-full flex items-center justify-center p-8 pb-24">
+                    <div className="max-w-6xl w-full">
+                        <div className="text-center mb-10">
+                            <span className="inline-block px-4 py-1 rounded-full text-sm font-medium mb-4 bg-blue-100 text-blue-600">Le Cerveau</span>
+                            <h2 className="text-4xl font-bold text-slate-900">RAG — Base de Connaissances <span className="text-blue-600">Vivante</span></h2>
+                            <p className="text-gray-500 mt-2">Plus on l'utilise, plus il devient performant</p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-8">
+                            <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
+                                <h3 className="font-bold flex items-center gap-2 mb-4 text-slate-700"><Database size={20} className="text-blue-500" /> Sources de Données</h3>
+                                <div className="space-y-3">
+                                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                                        <FileText size={20} className="text-gray-400" />
+                                        <div>
+                                            <div className="font-bold text-sm text-slate-800">Fichiers Word (P:\CLIENTS)</div>
+                                            <div className="text-xs text-gray-500">Infrastructure, Contacts, Particularités</div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                                        <FileText size={20} className="text-gray-400" />
+                                        <div>
+                                            <div className="font-bold text-sm text-slate-800">Fichiers Contrats (P:\CONTRATS)</div>
+                                            <div className="text-xs text-gray-500">SLA, Heures ouvrées, Engagements</div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-3 p-3 bg-amber-50 rounded-lg border border-amber-100">
+                                        <Sparkles size={20} className="text-amber-500" />
+                                        <div>
+                                            <div className="font-bold text-sm text-amber-900">Tickets Résolus (GLPI)</div>
+                                            <div className="text-xs text-amber-700">Auto-injecté chaque soir par l'Enrichisseur</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
+                                <h3 className="font-bold flex items-center gap-2 mb-4 text-slate-700"><Search size={20} className="text-purple-500" /> Ce que voit l'Agent</h3>
+                                <div className="bg-slate-900 rounded-xl p-4 font-mono text-xs text-gray-300">
+                                    <div className="mb-2"><span className="text-purple-400">Query:</span> "Problème VPN EHPAD Bellevue"</div>
+
+                                    <div className="space-y-2 pl-2 border-l-2 border-slate-700">
+                                        <div className="bg-slate-800 p-2 rounded">
+                                            <span className="text-green-400">[DOC] Fiche_Bellevue.docx (Score: 0.94)</span><br />
+                                            FAI: Orange - IP: 80.12.xx.xx - Contact: M. Dupont
+                                        </div>
+                                        <div className="bg-slate-800 p-2 rounded">
+                                            <span className="text-green-400">[PROC] Diag_VPN_Orange.md (Score: 0.89)</span><br />
+                                            1. Ping Gateway... 2. Check IKE Phase 1...
+                                        </div>
+                                        <div className="bg-slate-800 p-2 rounded">
+                                            <span className="text-amber-400">[SOL] Ticket_4102.json (Score: 0.85)</span><br />
+                                            Résolu le 12/10 : Reboot box a fixé le souci.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // SLIDE 11: Stack Technique
+        function SlideStack() {
+            return (
+                <div className="w-full h-full flex items-center justify-center p-8 pb-24">
+                    <div className="max-w-6xl w-full">
+                        <div className="text-center mb-10">
+                            <span className="inline-block px-4 py-1 rounded-full text-sm font-medium mb-4 bg-gray-800 text-white">Sous le Capot</span>
+                            <h2 className="text-4xl font-bold text-slate-900">Stack Technique <span className="text-gray-600">V12</span></h2>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-8">
+                            <div className="bg-white p-6 rounded-2xl shadow-lg">
+                                <h3 className="font-bold mb-4 text-slate-700">Intelligence & Données</h3>
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600"><Database size={24} /></div>
+                                        <div>
+                                            <div className="font-bold text-slate-900">PostgreSQL + pgvector</div>
+                                            <div className="text-sm text-gray-500">Le RAG vectoriel haute performance</div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center text-purple-600"><Brain size={24} /></div>
+                                        <div>
+                                            <div className="font-bold text-slate-900">API Devstral</div>
+                                            <div className="text-sm text-gray-500">Modèles Mistral AI (Souverain & Sécurisé)</div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center text-yellow-600"><Server size={24} /></div>
+                                        <div>
+                                            <div className="font-bold text-slate-900">Redis 7</div>
+                                            <div className="text-sm text-gray-500">Cache rapide pour les sessions agents</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-white p-6 rounded-2xl shadow-lg">
+                                <h3 className="font-bold mb-4 text-slate-700">Orchestration & Outils</h3>
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center text-pink-600"><Workflow size={24} /></div>
+                                        <div>
+                                            <div className="font-bold text-slate-900">n8n 2.0</div>
+                                            <div className="text-sm text-gray-500">Moteur de workflow visuel</div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center text-green-600"><Layout size={24} /></div>
+                                        <div>
+                                            <div className="font-bold text-slate-900">MCP (Python FastAPI)</div>
+                                            <div className="text-sm text-gray-500">Pont standardisé vers GLPI, AD, Observium</div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center text-slate-600"><Eye size={24} /></div>
+                                        <div>
+                                            <div className="font-bold text-slate-900">Dashboard React</div>
+                                            <div className="text-sm text-gray-500">Monitoring temps réel des bots</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // SLIDE 11.5: Interactive Map
+        function SlideInteractiveMap() {
+            const [selectedNode, setSelectedNode] = useState(null);
+
+            const nodes = {
+                safeguard: {
+                    id: 'safeguard',
+                    title: "AGENT SAFEGUARD",
+                    subtitle: "Gardien de la Conformité",
+                    icon: Shield,
+                    color: "text-red-500",
+                    bg: "bg-red-50",
+                    pos: "top-0 left-1/2 -translate-x-1/2",
+                    content: (
+                        <div className="space-y-4">
+                            <div className="p-3 bg-red-50 border-l-4 border-red-500 rounded">
+                                <p className="text-sm font-bold text-red-700">Mission : Validation & Sécurité</p>
+                                <p className="text-xs text-gray-600">Bloque toute action critique non-autorisée. Vérifie les SLA et ISO 27001.</p>
+                            </div>
+                            <ul className="text-sm space-y-2">
+                                <li className="flex gap-2"><ArrowRight size={16} className="text-red-500" /><span>Niveaux L3/L4 soumis à validation</span></li>
+                                <li className="flex gap-2"><ArrowRight size={16} className="text-red-500" /><span>Matrice d'escalade humaine</span></li>
+                            </ul>
+                        </div>
+                    )
+                },
+                sentinel: {
+                    id: 'sentinel',
+                    title: "AGENT SENTINEL",
+                    subtitle: "Surveillance Proactive",
+                    icon: Eye,
+                    color: "text-green-500",
+                    bg: "bg-green-50",
+                    pos: "top-1/2 left-0 -translate-y-1/2 ml-8",
+                    content: (
+                        <div className="space-y-4">
+                            <div className="p-3 bg-green-50 border-l-4 border-green-500 rounded">
+                                <p className="text-sm font-bold text-green-700">Mission : Veille Infra</p>
+                                <p className="text-xs text-gray-600">Surveille Observium 24/7. Diagnostique avant d'alerter.</p>
+                            </div>
+                            <ul className="text-sm space-y-2">
+                                <li className="flex gap-2"><ArrowRight size={16} className="text-green-500" /><span>Ping / Service Down</span></li>
+                                <li className="flex gap-2"><ArrowRight size={16} className="text-green-500" /><span>Création Ticket "Infra"</span></li>
+                            </ul>
+                        </div>
+                    )
+                },
+                center: {
+                    id: 'center',
+                    title: "HUB RAG + MCP",
+                    subtitle: "Cerveau & Bras Armés",
+                    icon: Network,
+                    color: "text-blue-600",
+                    bg: "bg-blue-50",
+                    pos: "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2",
+                    isCenter: true,
+                    content: (
+                        <div className="space-y-4">
+                            <div className="p-3 bg-blue-50 border-l-4 border-blue-500 rounded">
+                                <p className="text-sm font-bold text-blue-700">RAG (Mémoire)</p>
+                                <p className="text-xs text-gray-600">Base vectorielle contenant Contrats, Procédures et Historique.</p>
+                            </div>
+                            <div className="p-3 bg-purple-50 border-l-4 border-purple-500 rounded">
+                                <p className="text-sm font-bold text-purple-700">MCP (Action)</p>
+                                <p className="text-xs text-gray-600">Connecteurs Python vers GLPI, AD, Observium, SMTP.</p>
+                            </div>
+                        </div>
+                    )
+                },
+                support: {
+                    id: 'support',
+                    title: "AGENT SUPPORT",
+                    subtitle: "Assistance Réactive",
+                    icon: Headphones,
+                    color: "text-purple-500",
+                    bg: "bg-purple-50",
+                    pos: "top-1/2 right-0 -translate-y-1/2 mr-8",
+                    content: (
+                        <div className="space-y-4">
+                            <div className="p-3 bg-purple-50 border-l-4 border-purple-500 rounded">
+                                <p className="text-sm font-bold text-purple-700">Mission : Helpdesk</p>
+                                <p className="text-xs text-gray-600">Traite les tickets utilisateurs. Résout le N0/N1 automatiquement.</p>
+                            </div>
+                            <ul className="text-sm space-y-2">
+                                <li className="flex gap-2"><ArrowRight size={16} className="text-purple-500" /><span>Reset MDP / Déblocage</span></li>
+                                <li className="flex gap-2"><ArrowRight size={16} className="text-purple-500" /><span>Qualification N2</span></li>
+                            </ul>
+                        </div>
+                    )
+                },
+                enrichisseur: {
+                    id: 'enrichisseur',
+                    title: "AGENT ENRICHISSEUR",
+                    subtitle: "Amélioration Continue",
+                    icon: BookOpen,
+                    color: "text-amber-500",
+                    bg: "bg-amber-50",
+                    pos: "bottom-0 left-1/2 -translate-x-1/2",
+                    content: (
+                        <div className="space-y-4">
+                            <div className="p-3 bg-amber-50 border-l-4 border-amber-500 rounded">
+                                <p className="text-sm font-bold text-amber-700">Mission : Capitalisation</p>
+                                <p className="text-xs text-gray-600">Transforme les tickets résolus en nouvelles procédures RAG.</p>
+                            </div>
+                            <ul className="text-sm space-y-2">
+                                <li className="flex gap-2"><ArrowRight size={16} className="text-amber-500" /><span>Analyse quotidienne</span></li>
+                                <li className="flex gap-2"><ArrowRight size={16} className="text-amber-500" /><span>Création Knowledge Base</span></li>
+                            </ul>
+                        </div>
+                    )
+                }
+            };
+
+            return (
+                <div className="w-full h-full flex items-center justify-center p-8 pb-24 relative overflow-hidden">
+                    <div className="max-w-6xl w-full h-[600px] relative">
+                        <div className="absolute inset-0 pointer-events-none opacity-5" style={{
+                            backgroundImage: 'radial-gradient(#407BFE 1px, transparent 1px)',
+                            backgroundSize: '20px 20px'
+                        }}></div>
+
+                        {/* Connecting Lines (SVG) */}
+                        <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
+                            {/* Center to Top */}
+                            <line x1="50%" y1="50%" x2="50%" y2="15%" stroke="#cbd5e1" strokeWidth="2" strokeDasharray="6" className="animate-pulse" />
+                            {/* Center to Left */}
+                            <line x1="50%" y1="50%" x2="15%" y2="50%" stroke="#cbd5e1" strokeWidth="2" strokeDasharray="6" className="animate-pulse" />
+                            {/* Center to Right */}
+                            <line x1="50%" y1="50%" x2="85%" y2="50%" stroke="#cbd5e1" strokeWidth="2" strokeDasharray="6" className="animate-pulse" />
+                            {/* Center to Bottom */}
+                            <line x1="50%" y1="50%" x2="50%" y2="85%" stroke="#cbd5e1" strokeWidth="2" strokeDasharray="6" className="animate-pulse" />
+                        </svg>
+
+                        {/* Nodes */}
+                        {Object.values(nodes).map(node => (
+                            <div
+                                key={node.id}
+                                onClick={() => setSelectedNode(node)}
+                                className={`absolute ${node.pos} bg-white rounded-2xl shadow-lg border-2 border-transparent hover:border-current cursor-pointer transition-all duration-300 hover:scale-110 hover:shadow-2xl z-10 group ${node.isCenter ? 'w-64 h-64 flex flex-col justify-center items-center' : 'w-60 p-4'}`}
+                                style={{ color: node.isCenter ? undefined : '' }}
+                            >
+                                <div className={`flex flex-col items-center text-center ${node.color}`}>
+                                    <div className={`p-4 rounded-full ${node.bg} mb-2 group-hover:scale-110 transition-transform duration-300 shadow-sm`}>
+                                        <node.icon size={node.isCenter ? 48 : 32} />
+                                    </div>
+                                    <h3 className={`font-black ${node.isCenter ? 'text-xl' : 'text-sm'} uppercase`}>{node.title}</h3>
+                                    <p className={`text-[10px] text-gray-400 font-bold tracking-wider mt-1`}>{node.subtitle}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Modal Overlay */}
+                    {selectedNode && (
+                        <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-[pulse_0.2s_ease-out]" onClick={() => setSelectedNode(null)}>
+                            <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden transform transition-all scale-100" onClick={e => e.stopPropagation()}>
+                                <div className={`p-6 ${selectedNode.bg} flex items-center gap-4 border-b border-gray-100`}>
+                                    <div className={`p-3 bg-white rounded-xl shadow-sm ${selectedNode.color}`}>
+                                        <selectedNode.icon size={32} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-black text-slate-800">{selectedNode.title}</h3>
+                                        <p className="text-sm font-medium opacity-60">{selectedNode.subtitle}</p>
+                                    </div>
+                                    <button onClick={() => setSelectedNode(null)} className="ml-auto p-2 hover:bg-black/5 rounded-full transition-colors text-slate-500"><XCircle size={24} /></button>
+                                </div>
+                                <div className="p-8">
+                                    {selectedNode.content}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        // SLIDE 12: Conclusion
+        function SlideConclusion() {
+            return (
+                <div className="w-full h-full flex items-center justify-center p-8 pb-24">
+                    <div className="max-w-6xl w-full text-center">
+                        <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-blue-600 text-white shadow-2xl mb-8 animate-bounce">
+                            <CheckCircle2 size={48} />
+                        </div>
+                        <h2 className="text-5xl font-black text-slate-900 mb-6">Prêts pour la V12 !</h2>
+                        <p className="text-2xl text-gray-500 mb-12 max-w-3xl mx-auto">
+                            Une architecture pensée pour le terrain : <span className="text-blue-600 font-bold">aider au quotidien</span>, <span className="text-purple-600 font-bold">sécuriser les actions</span> et <span className="text-amber-600 font-bold">apprendre en continu</span>.
+                        </p>
+
+                        <div className="grid grid-cols-4 gap-6 max-w-4xl mx-auto">
+                            <div className="bg-white p-4 rounded-xl shadow-md border-t-4 border-blue-500">
+                                <div className="font-bold text-slate-900 mb-1">PROACTIF</div>
+                                <div className="text-sm text-gray-500">Moins de pannes subies</div>
+                            </div>
+                            <div className="bg-white p-4 rounded-xl shadow-md border-t-4 border-emerald-500">
+                                <div className="font-bold text-slate-900 mb-1">SUPPORT</div>
+                                <div className="text-sm text-gray-500">Réponses instantanées</div>
+                            </div>
+                            <div className="bg-white p-4 rounded-xl shadow-md border-t-4 border-amber-500">
+                                <div className="font-bold text-slate-900 mb-1">ÉVOLUTION</div>
+                                <div className="text-sm text-gray-500">Savoir capitalisé</div>
+                            </div>
+                            <div className="bg-white p-4 rounded-xl shadow-md border-t-4 border-purple-500">
+                                <div className="font-bold text-slate-900 mb-1">SÉCURITÉ</div>
+                                <div className="text-sm text-gray-500">Zéro risque critique</div>
+                            </div>
+                        </div>
+
+                        <div className="mt-16 text-slate-400 text-sm">
+                            <p>Merci de votre attention</p>
+                            <p className="font-mono mt-2">WIDIP IA TEAM — Décembre 2025</p>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+
+
+
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<WIDIPPresentationV12 />);
+    </script>
+</body>
+
+</html>

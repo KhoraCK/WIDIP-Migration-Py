@@ -1,0 +1,1560 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WIDIP IA V13 - Présentation Complète</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        html,
+        body,
+        #root {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+
+        @keyframes countUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        .animate-float {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .animate-countUp {
+            animation: countUp 0.5s ease-out forwards;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #407BFE 0%, #9333ea 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // ============================================
+        // ICONS - Custom SVG Components
+        // ============================================
+        const createIcon = (paths, circle = null, rect = null) => ({ size = 24, color = "currentColor", className = "", ...props }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>
+                {circle && <circle cx={circle.cx} cy={circle.cy} r={circle.r} />}
+                {rect && <rect x={rect.x} y={rect.y} width={rect.w} height={rect.h} rx={rect.r || 0} />}
+                {paths.map((d, i) => <path key={i} d={d} />)}
+            </svg>
+        );
+
+        const Icons = {
+            ChevronLeft: createIcon(["m15 18-6-6 6-6"]),
+            ChevronRight: createIcon(["m9 18 6-6-6-6"]),
+            Shield: createIcon(["M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"]),
+            Zap: createIcon(["M13 2 3 14h9l-1 8 10-12h-9l1-8z"]),
+            Headphones: createIcon(["M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"]),
+            AlertTriangle: createIcon(["M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z", "M12 9v4", "M12 17h.01"]),
+            Building: createIcon(["M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z", "M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2", "M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2", "M10 6h4", "M10 10h4", "M10 14h4", "M10 18h4"]),
+            Server: createIcon(["M2 9h20", "M2 15h20", "M6 9v6", "M10 9v6"], null, { x: 2, y: 5, w: 20, h: 14, r: 2 }),
+            Database: createIcon(["M12 3C7.5 3 4 4.1 4 5.5V18.5C4 19.9 7.5 21 12 21S20 19.9 20 18.5V5.5C20 4.1 16.5 3 12 3Z", "M20 12.5C20 13.9 16.5 15 12 15S4 13.9 4 12.5", "M20 5.5C20 6.9 16.5 8 12 8S4 6.9 4 5.5"]),
+            Brain: createIcon(["M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z", "M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z"]),
+            Lock: createIcon(["M7 11V7a5 5 0 0 1 10 0v4"], null, { x: 3, y: 11, w: 18, h: 11, r: 2 }),
+            CheckCircle: createIcon(["M22 11.08V12a10 10 0 1 1-5.93-9.14", "M22 4 12 14.01l-3-3"]),
+            XCircle: createIcon(["M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z", "m15 9-6 6", "m9 9 6 6"]),
+            Clock: createIcon(["M12 6v6l4 2"], { cx: 12, cy: 12, r: 10 }),
+            Users: createIcon(["M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2", "M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8z", "M22 21v-2a4 4 0 0 0-3-3.87", "M16 3.13a4 4 0 0 1 0 7.75"]),
+            ArrowRight: createIcon(["M5 12h14", "m12 5 7 7-7 7"]),
+            ArrowDown: createIcon(["M12 5v14", "m19 12-7 7-7-7"]),
+            Eye: createIcon(["M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"], { cx: 12, cy: 12, r: 3 }),
+            Target: createIcon(["M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z", "M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12z", "M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"]),
+            Sparkles: createIcon(["m12 3-1.9 5.8a2 2 0 0 1-1.2 1.2L3 12l5.8 1.9a2 2 0 0 1 1.2 1.2L12 21l1.9-5.8a2 2 0 0 1 1.2-1.2L21 12l-5.8-1.9a2 2 0 0 1-1.2-1.2L12 3z"]),
+            RefreshCw: createIcon(["M23 4v6h-6", "M1 20v-6h6", "M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"]),
+            BookOpen: createIcon(["M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z", "M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"]),
+            Workflow: createIcon(["M3 3v18h18", "m19 9-5 5-4-4-3 3"]),
+            MessageCircle: createIcon(["M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"]),
+            TrendingUp: createIcon(["M23 6l-9.5 9.5-5-5L1 18", "M17 6h6v6"]),
+            TrendingDown: createIcon(["M23 18l-9.5-9.5-5 5L1 6", "M17 18h6v-6"]),
+            DollarSign: createIcon(["M12 1v22", "M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"]),
+            PieChart: createIcon(["M21.21 15.89A10 10 0 1 1 8 2.83", "M22 12A10 10 0 0 0 12 2v10z"]),
+            BarChart: createIcon(["M12 20V10", "M18 20V4", "M6 20v-4"]),
+            Activity: createIcon(["M22 12h-4l-3 9L9 3l-3 9H2"]),
+            Monitor: createIcon(["M8 21h8", "M12 17v4", "M2 9h20"], null, { x: 2, y: 3, w: 20, h: 14, r: 2 }),
+            Settings: createIcon(["M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"], { cx: 12, cy: 12, r: 3 }),
+            Heart: createIcon(["M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"]),
+            Award: createIcon(["M12 15l-3.804 1.995.726-4.235L5.69 9.505l4.25-.617L12 5l2.06 3.888 4.25.617-3.232 3.255.726 4.235z", "M8 21l4-7 4 7", "M8 21l-4-2.5V14", "M16 21l4-2.5V14"]),
+            Rocket: createIcon(["M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z", "m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z", "M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0", "M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"]),
+            Euro: createIcon(["M4 10h12", "M4 14h9", "M19 6a7.7 7.7 0 0 0-5.2-2A7.9 7.9 0 0 0 6 12c0 4.4 3.5 8 7.8 8 2 0 3.8-.8 5.2-2"]),
+            Coffee: createIcon(["M17 8h1a4 4 0 1 1 0 8h-1", "M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z", "M6 2v2", "M10 2v2", "M14 2v2"]),
+            Lightbulb: createIcon(["M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5", "M9 18h6", "M10 22h4"]),
+        };
+
+        const { ChevronLeft, ChevronRight, Shield, Zap, Headphones, AlertTriangle, Building, Server, Database, Brain, Lock, CheckCircle, XCircle, Clock, Users, ArrowRight, ArrowDown, Eye, Target, Sparkles, RefreshCw, BookOpen, Workflow, MessageCircle, TrendingUp, TrendingDown, DollarSign, PieChart, BarChart, Activity, Monitor, Settings, Heart, Award, Rocket, Euro, Coffee, Lightbulb } = Icons;
+
+        // ============================================
+        // MAIN PRESENTATION COMPONENT
+        // ============================================
+        function WIDIPPresentationV13() {
+            const [currentSlide, setCurrentSlide] = useState(0);
+            const [isAnimating, setIsAnimating] = useState(false);
+
+            const slides = [
+                <SlideTitle key="title" />,
+                <SlideContext key="context" />,
+                <SlideProblem key="problem" />,
+                <SlideSolution key="solution" />,
+                <SlideWorkflows key="workflows" />,
+                <SlideWibot key="wibot" />,
+                <SlideSentinel key="sentinel" />,
+                <SlideSupport key="support" />,
+                <SlideEnrichisseur key="enrichisseur" />,
+                <SlideSafeguard key="safeguard" />,
+                <SlideRAG key="rag" />,
+                <SlideDashboard key="dashboard" />,
+                <SlideCosts key="costs" />,
+                <SlideBenefits key="benefits" />,
+                <SlideConclusion key="conclusion" />
+            ];
+
+            const nextSlide = () => {
+                if (currentSlide < slides.length - 1 && !isAnimating) {
+                    setIsAnimating(true);
+                    setTimeout(() => { setCurrentSlide(p => p + 1); setIsAnimating(false); }, 400);
+                }
+            };
+
+            const prevSlide = () => {
+                if (currentSlide > 0 && !isAnimating) {
+                    setIsAnimating(true);
+                    setTimeout(() => { setCurrentSlide(p => p - 1); setIsAnimating(false); }, 400);
+                }
+            };
+
+            const goToSlide = (index) => {
+                if (!isAnimating && index !== currentSlide) {
+                    setIsAnimating(true);
+                    setTimeout(() => { setCurrentSlide(index); setIsAnimating(false); }, 400);
+                }
+            };
+
+            useEffect(() => {
+                const handleKeyDown = (e) => {
+                    if (e.key === 'ArrowRight' || e.key === ' ') nextSlide();
+                    if (e.key === 'ArrowLeft') prevSlide();
+                };
+                window.addEventListener('keydown', handleKeyDown);
+                return () => window.removeEventListener('keydown', handleKeyDown);
+            }, [currentSlide, isAnimating]);
+
+            return (
+                <div className="relative w-full h-screen overflow-hidden text-slate-800" style={{
+                    background: 'linear-gradient(135deg, #e8f4fc 0%, #c7d9f7 25%, #d4c7f7 50%, #f0d4f7 75%, #f7e4f0 100%)'
+                }}>
+                    <div className={`w-full h-full transition-all duration-400 ease-out ${isAnimating ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}>
+                        {slides[currentSlide]}
+                    </div>
+
+                    {/* Navigation Bar */}
+                    <div className="absolute bottom-0 left-0 right-0 bg-white/90 backdrop-blur-sm border-t border-gray-200 px-6 py-4 z-50">
+                        <div className="max-w-6xl mx-auto flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <div className="text-2xl font-black" style={{ color: '#407BFE' }}>wid<span style={{ color: '#00203D' }}>ip</span></div>
+                                <span className="text-xs text-gray-500 ml-2">IA Architecture V13</span>
+                            </div>
+
+                            <div className="flex items-center gap-1">
+                                {slides.map((_, i) => (
+                                    <button key={i} onClick={() => goToSlide(i)} className={`h-2 rounded-full transition-all duration-300 ${i === currentSlide ? 'w-6 bg-gradient-to-r from-blue-500 to-purple-500' : 'w-2 bg-gray-300 hover:bg-gray-400'}`} />
+                                ))}
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                                <button onClick={prevSlide} disabled={currentSlide === 0} className="p-2 rounded-full bg-white shadow-md disabled:opacity-30 hover:shadow-lg transition-all text-slate-900">
+                                    <ChevronLeft size={24} />
+                                </button>
+                                <span className="text-sm font-medium text-slate-900 min-w-[3rem] text-center">{currentSlide + 1} / {slides.length}</span>
+                                <button onClick={nextSlide} disabled={currentSlide === slides.length - 1} className="p-2 rounded-full shadow-md disabled:opacity-30 hover:shadow-lg transition-all bg-blue-600 text-white">
+                                    <ChevronRight size={24} />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // ============================================
+        // SLIDE 1: TITRE
+        // ============================================
+        function SlideTitle() {
+            const [show, setShow] = useState(false);
+            useEffect(() => { setTimeout(() => setShow(true), 100); }, []);
+
+            return (
+                <div className="w-full h-full flex items-center justify-center p-8 pb-24">
+                    <div className="text-center">
+                        <div className={`transition-all duration-1000 ${show ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-10'}`}>
+                            <div className="inline-flex items-center justify-center w-28 h-28 rounded-3xl bg-white shadow-2xl mb-8 animate-float">
+                                <Brain size={56} style={{ color: '#407BFE' }} />
+                            </div>
+                        </div>
+
+                        <h1 className={`text-7xl font-black mb-4 transition-all duration-1000 delay-200 ${show ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`} style={{ color: '#00203D' }}>
+                            WIDIP <span className="gradient-text">IA</span>
+                        </h1>
+
+                        <p className={`text-3xl font-light mb-4 transition-all duration-1000 delay-300 ${show ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`} style={{ color: '#00203D' }}>
+                            Architecture V13
+                        </p>
+
+                        <p className={`text-xl text-gray-500 mb-10 transition-all duration-1000 delay-400 ${show ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+                            Système Intelligent pour le Support IT Médico-Social
+                        </p>
+
+                        <div className={`flex items-center justify-center gap-4 flex-wrap transition-all duration-1000 delay-500 ${show ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+                            {[
+                                { label: 'Assistant Technicien', icon: MessageCircle, color: 'cyan' },
+                                { label: 'Auto-Apprentissage', icon: Sparkles, color: 'amber' },
+                                { label: 'Sécurité HDS', icon: Shield, color: 'purple' },
+                                { label: 'Proactif', icon: Eye, color: 'emerald' },
+                            ].map((tag, i) => (
+                                <div key={i} className={`flex items-center gap-2 px-4 py-2 rounded-full bg-${tag.color}-100 text-${tag.color}-700 text-sm font-medium shadow-sm`}>
+                                    <tag.icon size={16} />
+                                    {tag.label}
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className={`mt-12 text-gray-400 text-sm transition-all duration-1000 delay-700 ${show ? 'opacity-100' : 'opacity-0'}`}>
+                            Décembre 2025 — Présentation Direction
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // ============================================
+        // SLIDE 2: CONTEXTE
+        // ============================================
+        function SlideContext() {
+            return (
+                <div className="w-full h-full flex items-center justify-center p-8 pb-24">
+                    <div className="max-w-6xl w-full">
+                        <div className="text-center mb-10">
+                            <span className="inline-block px-4 py-1 rounded-full text-sm font-medium mb-4 bg-blue-100 text-blue-600">Contexte</span>
+                            <h2 className="text-4xl font-bold text-slate-900">WIDIP en quelques chiffres</h2>
+                            <p className="text-gray-500 mt-2">Notre mission : garantir un SI performant pour le secteur médico-social</p>
+                        </div>
+
+                        <div className="grid grid-cols-4 gap-6 mb-8">
+                            {[
+                                { value: '600+', label: 'Établissements', sub: 'EHPAD, cliniques, associations', icon: Building, color: 'blue' },
+                                { value: '20 000', label: 'Tickets / an', sub: 'Support et infogérance', icon: Headphones, color: 'emerald' },
+                                { value: '15', label: 'Techniciens', sub: 'Équipe support N1/N2', icon: Users, color: 'purple' },
+                                { value: '24/7', label: 'Disponibilité', sub: 'Infrastructure critique', icon: Clock, color: 'amber' },
+                            ].map((stat, i) => (
+                                <div key={i} className="bg-white rounded-2xl p-6 shadow-lg text-center hover:shadow-xl transition-shadow">
+                                    <div className={`inline-flex items-center justify-center w-14 h-14 rounded-xl bg-${stat.color}-100 text-${stat.color}-600 mb-4`}>
+                                        <stat.icon size={28} />
+                                    </div>
+                                    <div className={`text-4xl font-black text-${stat.color}-600 mb-1`}>{stat.value}</div>
+                                    <div className="font-bold text-slate-800">{stat.label}</div>
+                                    <div className="text-xs text-gray-500 mt-1">{stat.sub}</div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-6">
+                            <div className="bg-white rounded-2xl p-6 shadow-lg">
+                                <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                                    <Shield size={20} className="text-purple-500" />
+                                    Certifications & Conformité
+                                </h3>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="p-3 bg-purple-50 rounded-xl border border-purple-100">
+                                        <div className="font-bold text-purple-900">ISO 27001</div>
+                                        <div className="text-xs text-purple-700">Sécurité de l'information</div>
+                                    </div>
+                                    <div className="p-3 bg-red-50 rounded-xl border border-red-100">
+                                        <div className="font-bold text-red-900">HDS</div>
+                                        <div className="text-xs text-red-700">Hébergeur Données de Santé</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-white rounded-2xl p-6 shadow-lg">
+                                <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                                    <Heart size={20} className="text-red-500" />
+                                    Valeurs SCOP
+                                </h3>
+                                <p className="text-gray-600 text-sm">
+                                    En tant que <strong>Société Coopérative</strong>, WIDIP place l'humain au centre.
+                                    L'IA n'est pas là pour remplacer les techniciens, mais pour <strong>les assister</strong> et
+                                    leur permettre de se concentrer sur les tâches à forte valeur ajoutée.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // ============================================
+        // SLIDE 3: LE PROBLÈME
+        // ============================================
+        function SlideProblem() {
+            return (
+                <div className="w-full h-full flex items-center justify-center p-8 pb-24">
+                    <div className="max-w-6xl w-full">
+                        <div className="text-center mb-10">
+                            <span className="inline-block px-4 py-1 rounded-full text-sm font-medium mb-4 bg-red-100 text-red-600">Le Défi</span>
+                            <h2 className="text-4xl font-bold text-slate-900">Ce qu'on observe <span className="text-red-500">aujourd'hui</span></h2>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-8">
+                            {/* Problèmes */}
+                            <div className="space-y-4">
+                                <h3 className="font-bold text-xl text-slate-800 mb-4 flex items-center gap-2">
+                                    <AlertTriangle size={24} className="text-red-500" />
+                                    Les douleurs quotidiennes
+                                </h3>
+
+                                {[
+                                    { title: 'Recherche d\'information dispersée', desc: 'Les fiches clients sont dans Word, l\'historique dans GLPI, les procédures... nulle part de centralisé.' },
+                                    { title: 'Tickets répétitifs', desc: 'Problème d\'imprimante, demande de création de comptes, mdp perdu... - Le même problème revient 10 fois par mois.' },
+                                    { title: 'Pannes détectées par les clients', desc: 'Le client appelle pour dire que ça ne marche plus. On aurait pu le voir avant lui.' },
+                                    { title: 'Temps perdu en qualification', desc: 'Comprendre le contexte client prend parfois plus de temps que résoudre le problème.' },
+                                ].map((item, i) => (
+                                    <div key={i} className="bg-white rounded-xl p-4 shadow-md border-l-4 border-red-400">
+                                        <div className="font-bold text-slate-800">{item.title}</div>
+                                        <div className="text-sm text-gray-600 mt-1">{item.desc}</div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Impact */}
+                            <div className="bg-white rounded-2xl p-8 shadow-xl">
+                                <h3 className="font-bold text-xl text-slate-800 mb-6 flex items-center gap-2">
+                                    <TrendingDown size={24} className="text-red-500" />
+                                    L'impact concret
+                                </h3>
+
+                                <div className="space-y-6">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-16 h-16 bg-red-100 rounded-xl flex items-center justify-center">
+                                            <Clock size={32} className="text-red-600" />
+                                        </div>
+                                        <div>
+                                            <div className="text-3xl font-black text-red-600">~15 min</div>
+                                            <div className="text-gray-600">pour qualifier un ticket complexe</div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-16 h-16 bg-orange-100 rounded-xl flex items-center justify-center">
+                                            <RefreshCw size={32} className="text-orange-600" />
+                                        </div>
+                                        <div>
+                                            <div className="text-3xl font-black text-orange-600">Récurrence</div>
+                                            <div className="text-gray-600">des tickets sont des "déjà-vu"</div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-16 h-16 bg-amber-100 rounded-xl flex items-center justify-center">
+                                            <Users size={32} className="text-amber-600" />
+                                        </div>
+                                        <div>
+                                            <div className="text-3xl font-black text-amber-600">Expertise</div>
+                                            <div className="text-gray-600">concentrée sur quelques personnes</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="mt-8 p-4 bg-slate-100 rounded-xl">
+                                    <p className="text-sm text-slate-700 italic">
+                                        "Le savoir-faire existe, mais il n'est pas capitalisé.
+                                        Quand un technicien résout un problème, la solution reste dans sa tête."
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // ============================================
+        // SLIDE 4: LA SOLUTION - VUE D'ENSEMBLE
+        // ============================================
+        function SlideSolution() {
+            return (
+                <div className="w-full h-full flex items-center justify-center p-8 pb-24">
+                    <div className="max-w-6xl w-full">
+                        <div className="text-center mb-8">
+                            <span className="inline-block px-4 py-1 rounded-full text-sm font-medium mb-4 bg-emerald-100 text-emerald-600">La Solution</span>
+                            <h2 className="text-4xl font-bold text-slate-900">Architecture WIDIP IA <span className="gradient-text">V13</span></h2>
+                            <p className="text-gray-500 mt-2">Un système intelligent qui assiste, apprend et protège</p>
+                        </div>
+
+                        <div className="bg-white rounded-3xl p-8 shadow-xl border border-gray-100">
+                            {/* RAG en haut */}
+                            <div className="flex justify-center mb-6">
+                                <div className="bg-blue-600 text-white p-5 rounded-2xl shadow-lg w-80 text-center relative">
+                                    <Database size={28} className="mx-auto mb-2" />
+                                    <h3 className="font-bold text-lg">RAG CENTRAL</h3>
+                                    <p className="text-sm opacity-80">Base de connaissances auto-enrichie</p>
+                                    <p className="text-xs opacity-60 mt-1">~50 000 chunks • Clients + Procédures + Solutions</p>
+                                </div>
+                            </div>
+
+                            <div className="flex justify-center mb-4">
+                                <ArrowDown size={24} className="text-gray-300" />
+                            </div>
+
+                            {/* Agents au milieu */}
+                            <div className="grid grid-cols-4 gap-4 mb-6">
+                                <div className="bg-cyan-50 p-4 rounded-xl border-2 border-cyan-200 text-center">
+                                    <MessageCircle size={24} className="mx-auto text-cyan-600 mb-2" />
+                                    <h4 className="font-black text-cyan-900 text-sm">WIBOT</h4>
+                                    <div className="text-xs font-bold text-cyan-500 tracking-wider">ASSISTANT</div>
+                                    <p className="text-xs text-cyan-700 mt-1">Chat techniciens</p>
+                                </div>
+                                <div className="bg-blue-50 p-4 rounded-xl border-2 border-blue-200 text-center">
+                                    <Eye size={24} className="mx-auto text-blue-600 mb-2" />
+                                    <h4 className="font-black text-blue-900 text-sm">SENTINEL</h4>
+                                    <div className="text-xs font-bold text-blue-500 tracking-wider">PROACTIF</div>
+                                    <p className="text-xs text-blue-700 mt-1">Surveillance réseau</p>
+                                </div>
+                                <div className="bg-emerald-50 p-4 rounded-xl border-2 border-emerald-200 text-center">
+                                    <Headphones size={24} className="mx-auto text-emerald-600 mb-2" />
+                                    <h4 className="font-black text-emerald-900 text-sm">SUPPORT</h4>
+                                    <div className="text-xs font-bold text-emerald-500 tracking-wider">RÉACTIF</div>
+                                    <p className="text-xs text-emerald-700 mt-1">Aide tickets</p>
+                                </div>
+                                <div className="bg-amber-50 p-4 rounded-xl border-2 border-amber-200 text-center">
+                                    <BookOpen size={24} className="mx-auto text-amber-600 mb-2" />
+                                    <h4 className="font-black text-amber-900 text-sm">ENRICHISSEUR</h4>
+                                    <div className="text-xs font-bold text-amber-500 tracking-wider">ÉVOLUTIF</div>
+                                    <p className="text-xs text-amber-700 mt-1">Auto-apprentissage</p>
+                                </div>
+                            </div>
+
+                            <div className="flex justify-center mb-4">
+                                <ArrowDown size={24} className="text-gray-300" />
+                            </div>
+
+                            {/* Safeguard */}
+                            <div className="flex justify-center mb-6">
+                                <div className="bg-purple-600 text-white p-4 rounded-xl shadow-lg w-full max-w-xl text-center">
+                                    <div className="flex items-center justify-center gap-3">
+                                        <Shield size={24} />
+                                        <span className="font-bold text-lg">SAFEGUARD — Le Verrou de Sécurité</span>
+                                    </div>
+                                    <p className="text-sm opacity-80 mt-1">Aucune action critique sans validation humaine</p>
+                                </div>
+                            </div>
+
+                            <div className="flex justify-center mb-4">
+                                <ArrowDown size={24} className="text-gray-300" />
+                            </div>
+
+                            {/* Exécution */}
+                            <div className="flex justify-center">
+                                <div className="bg-slate-800 text-white p-4 rounded-xl w-full max-w-2xl text-center">
+                                    <h3 className="font-bold">GLPI • MCP • Infrastructure</h3>
+                                    <p className="text-sm text-slate-400">Exécution des actions réelles</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // ============================================
+        // SLIDE 5: LES 4 WORKFLOWS
+        // ============================================
+        function SlideWorkflows() {
+            return (
+                <div className="w-full h-full flex items-center justify-center p-8 pb-24">
+                    <div className="max-w-6xl w-full">
+                        <div className="text-center mb-8">
+                            <span className="inline-block px-4 py-1 rounded-full text-sm font-medium mb-4 bg-gray-200 text-gray-700">Pédagogie</span>
+                            <h2 className="text-4xl font-bold text-slate-900">4 Workflows = 4 Missions</h2>
+                            <p className="text-gray-500 mt-2">Chaque workflow automatise un aspect différent du support</p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-6">
+                            {[
+                                {
+                                    name: 'WIBOT',
+                                    subtitle: 'Assistant Technicien',
+                                    icon: MessageCircle,
+                                    color: 'cyan',
+                                    trigger: 'Technicien pose une question',
+                                    action: 'Recherche RAG + contexte client',
+                                    result: 'Réponse instantanée avec sources',
+                                    example: '"C\'est quoi l\'IP du serveur de l\'EHPAD Bellevue ?"'
+                                },
+                                {
+                                    name: 'SENTINEL',
+                                    subtitle: 'Surveillance Proactive',
+                                    icon: Eye,
+                                    color: 'blue',
+                                    trigger: 'Alerte Observium ou Vérif toutes les 20 min',
+                                    action: 'Diag + Human In The Loop (Fibee) + Dashboard',
+                                    result: 'Ticket créé + technicien notifié',
+                                    example: 'Switch client offline → Ticket avant que le client appelle'
+                                },
+                                {
+                                    name: 'SUPPORT',
+                                    subtitle: 'Aide aux Tickets',
+                                    icon: Headphones,
+                                    color: 'emerald',
+                                    trigger: 'Nouveau ticket (sans tag)',
+                                    action: 'Analyse problème + recherche solutions similaires',
+                                    result: 'Proposition de résolution en ~10 secondes',
+                                    example: '"VPN ne marche plus" → Procédure step-by-step'
+                                },
+                                {
+                                    name: 'ENRICHISSEUR',
+                                    subtitle: 'Auto-Apprentissage',
+                                    icon: BookOpen,
+                                    color: 'amber',
+                                    trigger: 'Tous les soirs à 18h',
+                                    action: 'Analyse des tickets résolus du jour',
+                                    result: 'Nouvelles procédures créées automatiquement',
+                                    example: 'Solution trouvée aujourd\'hui → Disponible pour tous demain'
+                                },
+                            ].map((wf, i) => (
+                                <div key={i} className={`bg-white rounded-2xl p-6 shadow-lg border-t-4 border-${wf.color}-500`}>
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className={`bg-${wf.color}-100 p-3 rounded-xl text-${wf.color}-600`}>
+                                            <wf.icon size={28} />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-black text-lg">{wf.name}</h3>
+                                            <div className="text-xs font-bold text-gray-400 uppercase">{wf.subtitle}</div>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <div className="flex gap-2">
+                                            <span className="text-xs font-bold text-gray-400 w-20">TRIGGER</span>
+                                            <span className="text-sm text-gray-700">{wf.trigger}</span>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <span className="text-xs font-bold text-gray-400 w-20">ACTION</span>
+                                            <span className="text-sm text-gray-700">{wf.action}</span>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <span className="text-xs font-bold text-gray-400 w-20">RÉSULTAT</span>
+                                            <span className="text-sm text-gray-700 font-medium">{wf.result}</span>
+                                        </div>
+                                    </div>
+
+                                    <div className={`mt-4 p-3 bg-${wf.color}-50 rounded-xl border border-${wf.color}-100`}>
+                                        <p className="text-xs text-gray-600 italic">💡 {wf.example}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // ============================================
+        // SLIDE 6: WIBOT - ASSISTANT TECHNICIEN
+        // ============================================
+        function SlideWibot() {
+            return (
+                <div className="w-full h-full flex items-center justify-center p-8 pb-24">
+                    <div className="max-w-6xl w-full">
+                        <div className="flex items-center justify-between mb-8">
+                            <div>
+                                <span className="inline-block px-4 py-1 rounded-full text-sm font-medium mb-4 bg-cyan-100 text-cyan-600">Nouveau V13</span>
+                                <h2 className="text-4xl font-bold text-slate-900">WIBOT — <span className="text-cyan-600">L'Assistant des Techniciens</span></h2>
+                                <p className="text-gray-500 mt-2">Un collègue IA disponible 24/7 pour répondre aux questions</p>
+                            </div>
+                            <div className="w-20 h-20 bg-cyan-500 rounded-2xl flex items-center justify-center text-white shadow-xl">
+                                <MessageCircle size={40} />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-8">
+                            {/* Simulation Chat */}
+                            <div className="bg-slate-900 rounded-2xl p-6 shadow-xl">
+                                <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-700">
+                                    <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                                    <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                                    <span className="text-slate-400 text-sm ml-2">WIBOT Chat</span>
+                                </div>
+
+                                <div className="space-y-4">
+                                    {/* Message technicien */}
+                                    <div className="flex justify-end">
+                                        <div className="bg-blue-600 text-white p-3 rounded-2xl rounded-br-md max-w-xs">
+                                            <p className="text-sm">C'est quoi le contact sur site pour EHPAD Bellevue ?</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Réponse WIBOT */}
+                                    <div className="flex justify-start">
+                                        <div className="bg-slate-700 text-white p-3 rounded-2xl rounded-bl-md max-w-sm">
+                                            <p className="text-sm mb-2">
+                                                <strong>EHPAD Bellevue</strong><br />
+                                                Contact : Marie Dupont (Directrice)<br />
+                                                Tél : 04.XX.XX.XX.XX<br />
+                                                FAI : Orange Pro
+                                            </p>
+                                            <p className="text-xs text-slate-400">Source: Fiche_Bellevue.docx (P:\CLIENTS)</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Message technicien 2 */}
+                                    <div className="flex justify-end">
+                                        <div className="bg-blue-600 text-white p-3 rounded-2xl rounded-br-md max-w-xs">
+                                            <p className="text-sm">Ils ont eu des problèmes VPN récemment ?</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Réponse WIBOT 2 */}
+                                    <div className="flex justify-start">
+                                        <div className="bg-slate-700 text-white p-3 rounded-2xl rounded-bl-md max-w-sm">
+                                            <p className="text-sm">
+                                                Oui, 3 incidents VPN ces 6 derniers mois :<br />
+                                                • #4521 (Oct) - Fibre coupée travaux<br />
+                                                • #4102 (Août) - Reboot box résolu<br />
+                                                • #3891 (Juin) - Config MTU
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="mt-4 flex items-center gap-2">
+                                    <input type="text" placeholder="Posez votre question..." className="flex-1 bg-slate-800 text-white p-3 rounded-xl text-sm border border-slate-600" disabled />
+                                    <button className="bg-cyan-500 p-3 rounded-xl text-white">
+                                        <ArrowRight size={20} />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Explications */}
+                            <div className="space-y-4">
+                                <div className="bg-white rounded-xl p-5 shadow-lg">
+                                    <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
+                                        <Lightbulb size={20} className="text-cyan-500" />
+                                        Pourquoi WIBOT ?
+                                    </h3>
+                                    <p className="text-gray-600 text-sm">
+                                        Au lieu de chercher dans 15 fichiers Word différents, le technicien pose simplement sa question.
+                                        WIBOT interroge le RAG et GLPI pour lui donner une réponse <strong>contextualisée en quelques secondes</strong>.
+                                    </p>
+                                </div>
+
+                                <div className="bg-white rounded-xl p-5 shadow-lg">
+                                    <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
+                                        <Shield size={20} className="text-purple-500" />
+                                        Sécurité : Lecture seule
+                                    </h3>
+                                    <p className="text-gray-600 text-sm">
+                                        WIBOT ne peut <strong>que consulter</strong>. Il ne modifie rien, ne crée pas de ticket,
+                                        n'exécute aucune action. C'est un assistant de recherche, pas un robot d'exécution.
+                                    </p>
+                                </div>
+
+                                <div className="bg-cyan-50 rounded-xl p-5 border border-cyan-200">
+                                    <h3 className="font-bold text-lg mb-3 text-cyan-800">Bénéfices attendus</h3>
+                                    <ul className="space-y-2">
+                                        {[
+                                            'Temps de recherche considérablement réduit',
+                                            'Accès instantané à l\'historique client',
+                                            'Partage du savoir entre techniciens',
+                                            'Formation accélérée des nouveaux',
+                                        ].map((b, i) => (
+                                            <li key={i} className="flex items-center gap-2 text-sm text-cyan-700">
+                                                <CheckCircle size={16} className="text-cyan-500" />
+                                                {b}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // ============================================
+        // SLIDE 7: SENTINEL
+        // ============================================
+        function SlideSentinel() {
+            return (
+                <div className="w-full h-full flex items-center justify-center p-8 pb-24">
+                    <div className="max-w-6xl w-full">
+                        <div className="flex items-center justify-between mb-8">
+                            <div>
+                                <span className="inline-block px-4 py-1 rounded-full text-sm font-medium mb-4 bg-blue-100 text-blue-600">Workflow Proactif</span>
+                                <h2 className="text-4xl font-bold text-slate-900">SENTINEL — <span className="text-blue-600">Surveillance 24/7</span></h2>
+                                <p className="text-gray-500 mt-2">Détecte les problèmes avant que le client ne s'en rende compte</p>
+                            </div>
+                            <div className="w-20 h-20 bg-blue-500 rounded-2xl flex items-center justify-center text-white shadow-xl">
+                                <Eye size={40} />
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-3xl p-8 shadow-xl">
+                            <div className="flex items-center justify-between gap-4">
+                                {[
+                                    { step: 'TRIGGER', title: 'Alerte Observium', desc: 'Ping fail, port down, latence élevée', color: 'blue', highlight: false },
+                                    { step: 'ANALYSE', title: 'Diagnostic IA', desc: 'C\'est WIDIP ou le FAI ? Human in the loop', color: 'blue', highlight: true },
+                                    { step: 'DÉCISION', title: 'Création Ticket', desc: 'Ticket GLPI avec contexte complet', color: 'blue', highlight: false },
+                                    { step: 'ACTION', title: 'Notification', desc: 'Technicien de garde alerté', color: 'blue', highlight: false },
+                                ].map((item, i) => (
+                                    <React.Fragment key={i}>
+                                        <div className={`flex-1 p-4 rounded-xl border-2 text-center ${item.highlight ? 'border-blue-500 bg-blue-50 shadow-lg transform scale-105' : 'border-blue-100 bg-white'}`}>
+                                            <div className="text-xs font-bold text-gray-400 mb-2">{item.step}</div>
+                                            <div className="font-bold text-blue-800">{item.title}</div>
+                                            <div className="text-xs text-gray-500 mt-1">{item.desc}</div>
+                                        </div>
+                                        {i < 3 && <ArrowRight className="text-gray-300 shrink-0" />}
+                                    </React.Fragment>
+                                ))}
+                            </div>
+
+                            <div className="mt-8 grid grid-cols-2 gap-6">
+                                <div className="bg-blue-50 p-5 rounded-xl border border-blue-100">
+                                    <h4 className="font-bold text-blue-900 mb-3">Ce que SENTINEL détecte</h4>
+                                    <ul className="space-y-2 text-sm text-blue-800">
+                                        <li className="flex items-center gap-2"><Eye size={16} className="text-blue-500" /> Équipement qui ne répond plus</li>
+                                        <li className="flex items-center gap-2"><Eye size={16} className="text-blue-500" /> Latence anormale (&gt;100ms)</li>
+                                        <li className="flex items-center gap-2"><Eye size={16} className="text-blue-500" /> Perte de paquets (&gt;5%)</li>
+                                        <li className="flex items-center gap-2"><Eye size={16} className="text-blue-500" /> Services critiques down</li>
+                                    </ul>
+                                </div>
+
+                                <div className="bg-emerald-50 p-5 rounded-xl border border-emerald-100">
+                                    <h4 className="font-bold text-emerald-900 mb-3">Avant / Après</h4>
+                                    <div className="space-y-3 text-sm">
+                                        <div className="flex items-start gap-3">
+                                            <XCircle size={20} className="text-red-500 shrink-0 mt-0.5" />
+                                            <div><strong className="text-red-700">Avant :</strong> <span className="text-gray-600">Le client appelle "Plus rien ne marche depuis 2h !"</span></div>
+                                        </div>
+                                        <div className="flex items-start gap-3">
+                                            <CheckCircle size={20} className="text-emerald-500 shrink-0 mt-0.5" />
+                                            <div><strong className="text-emerald-700">Après :</strong> <span className="text-gray-600">Ticket ouvert automatiquement, technicien déjà en action</span></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // ============================================
+        // SLIDE 8: SUPPORT
+        // ============================================
+        function SlideSupport() {
+            return (
+                <div className="w-full h-full flex items-center justify-center p-8 pb-24">
+                    <div className="max-w-6xl w-full">
+                        <div className="flex items-center justify-between mb-8">
+                            <div>
+                                <span className="inline-block px-4 py-1 rounded-full text-sm font-medium mb-4 bg-emerald-100 text-emerald-600">Workflow Réactif</span>
+                                <h2 className="text-4xl font-bold text-slate-900">SUPPORT — <span className="text-emerald-600">Aide au Diagnostic</span></h2>
+                                <p className="text-gray-500 mt-2">Analyse les tickets et propose des solutions en ~10 secondes</p>
+                            </div>
+                            <div className="w-20 h-20 bg-emerald-500 rounded-2xl flex items-center justify-center text-white shadow-xl">
+                                <Headphones size={40} />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-8">
+                            {/* Timeline */}
+                            <div className="bg-white rounded-2xl p-6 shadow-xl">
+                                <h3 className="font-bold text-lg mb-4">Déroulé d'un nouveau ticket</h3>
+
+                                <div className="relative pl-8 space-y-6">
+                                    <div className="absolute left-3 top-0 bottom-0 w-0.5 bg-emerald-200"></div>
+
+                                    {[
+                                        { time: 'T+0s', title: 'Réception du ticket', desc: 'Le ticket est détecté et analysé par l\'IA' },
+                                        { time: 'T+1s', title: 'Recherche RAG', desc: 'Procédures, solutions similaires, infos client' },
+                                        { time: 'T+2s', title: 'Historique GLPI', desc: 'Incidents passés sur ce client' },
+                                        { time: 'T+5s', title: 'Analyse IA (Devstral)', desc: 'Génération du diagnostic complet' },
+                                        { time: 'T+10s', title: 'Validation Humaine', desc: 'Human in the Loop si cas critique (L3/L4)' },
+                                    ].map((step, i) => (
+                                        <div key={i} className="relative">
+                                            <div className="absolute -left-5 w-4 h-4 rounded-full bg-emerald-500 border-4 border-white"></div>
+                                            <div className="text-xs font-mono text-emerald-600 mb-1">{step.time}</div>
+                                            <div className="font-bold text-slate-800">{step.title}</div>
+                                            <div className="text-sm text-gray-500">{step.desc}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Exemple de résultat */}
+                            <div className="space-y-4">
+                                <div className="bg-slate-900 rounded-2xl p-5 text-white">
+                                    <div className="text-xs text-emerald-400 mb-3">📋 PROPOSITION DE RÉSOLUTION</div>
+                                    <div className="space-y-3 text-sm">
+                                        <div>
+                                            <span className="text-gray-400">Client :</span> EHPAD Bellevue (FAI: Orange Pro)
+                                        </div>
+                                        <div>
+                                            <span className="text-gray-400">Demande :</span> Déblocage compte AD / Mdp Oublié
+                                        </div>
+                                        <div className="border-t border-slate-700 pt-3">
+                                            <span className="text-amber-400">Analyse :</span>
+                                            <ul className="mt-1 text-gray-300 list-disc list-inside">
+                                                <li>Utilisateur trouvé dans AD (Marie D.)</li>
+                                                <li>Compte verrouillé (Bad Pwd Count &gt; 5)</li>
+                                                <li>Politique de sécurité appliquée</li>
+                                            </ul>
+                                        </div>
+                                        <div className="border-t border-slate-700 pt-3">
+                                            <span className="text-emerald-400">Actions proposées :</span>
+                                            <ul className="mt-1 text-gray-300 list-decimal list-inside">
+                                                <li>Vérifier identité appelant</li>
+                                                <li>Déverrouiller compte (Safeguard L1)</li>
+                                                <li>Reset password temporaire</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-200">
+                                    <div className="flex items-center gap-2 text-emerald-800 font-bold mb-2">
+                                        <Clock size={18} />
+                                        Gain de temps estimé
+                                    </div>
+                                    <p className="text-sm text-emerald-700">
+                                        <strong>Avant :</strong> 10-15 min pour qualifier et trouver la procédure<br />
+                                        <strong>Après :</strong> 10 secondes pour avoir une proposition complète
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // ============================================
+        // SLIDE 9: ENRICHISSEUR
+        // ============================================
+        function SlideEnrichisseur() {
+            return (
+                <div className="w-full h-full flex items-center justify-center p-8 pb-24">
+                    <div className="max-w-6xl w-full">
+                        <div className="flex items-center justify-between mb-8">
+                            <div>
+                                <span className="inline-block px-4 py-1 rounded-full text-sm font-medium mb-4 bg-amber-100 text-amber-600">Workflow Évolutif</span>
+                                <h2 className="text-4xl font-bold text-slate-900">ENRICHISSEUR — <span className="text-amber-600">Le Cercle Vertueux</span></h2>
+                                <p className="text-gray-500 mt-2">Le système devient plus intelligent chaque jour, automatiquement</p>
+                            </div>
+                            <div className="w-20 h-20 bg-amber-500 rounded-2xl flex items-center justify-center text-white shadow-xl animate-pulse">
+                                <Sparkles size={40} />
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-3xl p-8 shadow-xl">
+                            {/* Cycle */}
+                            <div className="flex items-center justify-center gap-4 mb-8">
+                                <div className="text-center p-4 bg-slate-100 rounded-xl w-40">
+                                    <div className="text-3xl mb-2">👨‍💻</div>
+                                    <div className="font-bold text-slate-800">Technicien</div>
+                                    <div className="text-xs text-gray-500">résout un ticket</div>
+                                </div>
+                                <ArrowRight className="text-amber-400" size={32} />
+                                <div className="text-center p-4 bg-amber-100 rounded-xl w-40 border-2 border-amber-300">
+                                    <div className="text-3xl mb-2">🤖</div>
+                                    <div className="font-bold text-amber-800">ENRICHISSEUR</div>
+                                    <div className="text-xs text-amber-600">analyse à 18h</div>
+                                </div>
+                                <ArrowRight className="text-amber-400" size={32} />
+                                <div className="text-center p-4 bg-blue-100 rounded-xl w-40">
+                                    <div className="text-3xl mb-2">📚</div>
+                                    <div className="font-bold text-blue-800">RAG</div>
+                                    <div className="text-xs text-blue-600">nouvelle procédure</div>
+                                </div>
+                                <ArrowRight className="text-amber-400" size={32} />
+                                <div className="text-center p-4 bg-emerald-100 rounded-xl w-40">
+                                    <div className="text-3xl mb-2">✨</div>
+                                    <div className="font-bold text-emerald-800">Tous les techs</div>
+                                    <div className="text-xs text-emerald-600">en bénéficient</div>
+                                </div>
+                            </div>
+
+                            {/* Projection */}
+                            <div className="bg-gradient-to-r from-amber-50 to-emerald-50 rounded-2xl p-6 border border-amber-200">
+                                <h3 className="font-bold text-lg mb-4 text-center">📈 Projection d'autonomie</h3>
+                                <div className="grid grid-cols-3 gap-6">
+                                    <div className="text-center">
+                                        <div className="text-4xl font-black text-amber-600">30%</div>
+                                        <div className="font-bold text-slate-800">Mois 1</div>
+                                        <div className="text-xs text-gray-500">RAG initial (fichiers Word)</div>
+                                        <div className="mt-2 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                            <div className="h-full bg-amber-500 rounded-full" style={{ width: '30%' }}></div>
+                                        </div>
+                                    </div>
+                                    <div className="text-center">
+                                        <div className="text-4xl font-black text-amber-500">50%</div>
+                                        <div className="font-bold text-slate-800">Mois 3</div>
+                                        <div className="text-xs text-gray-500">+500 procédures auto</div>
+                                        <div className="mt-2 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                            <div className="h-full bg-amber-500 rounded-full" style={{ width: '50%' }}></div>
+                                        </div>
+                                    </div>
+                                    <div className="text-center">
+                                        <div className="text-4xl font-black text-emerald-600">70%</div>
+                                        <div className="font-bold text-slate-800">Mois 6</div>
+                                        <div className="text-xs text-gray-500">+1000 procédures auto</div>
+                                        <div className="mt-2 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                            <div className="h-full bg-emerald-500 rounded-full" style={{ width: '70%' }}></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <p className="text-center text-sm text-gray-600 mt-6">
+                                    <strong>Objectif :</strong> 70% des tickets avec une proposition de résolution automatique en 6 mois
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // ============================================
+        // SLIDE 10: SAFEGUARD
+        // ============================================
+        function SlideSafeguard() {
+            const [level, setLevel] = useState(2);
+            const levels = [
+                { id: 0, title: 'L0 - LECTURE', color: 'gray', desc: 'Consultation RAG, GLPI. Aucune validation.', example: 'WIBOT consulte la fiche client', mode: 'AUTO ✓' },
+                { id: 1, title: 'L1 - MINEUR', color: 'green', desc: 'Créer ticket, ajouter commentaire, email.', example: 'SENTINEL crée un ticket d\'alerte', mode: 'AUTO ✓' },
+                { id: 2, title: 'L2 - MODÉRÉ', color: 'blue', desc: 'Changer statut, assigner technicien.', example: 'SUPPORT assigne au groupe N2', mode: 'AUTO si pattern connu' },
+                { id: 3, title: 'L3 - SENSIBLE', color: 'orange', desc: 'Redémarrage service, modif config.', example: 'Reboot serveur client', mode: 'VALIDATION HUMAINE 🔒' },
+                { id: 4, title: 'L4 - CRITIQUE', color: 'red', desc: 'Accès AD, données santé, suppression.', example: 'Modification Active Directory', mode: 'INTERDIT 🛑' },
+            ];
+
+            const colorClasses = {
+                gray: { bg: 'bg-gray-100', border: 'border-gray-300', text: 'text-gray-700', bar: 'bg-gray-400' },
+                green: { bg: 'bg-green-100', border: 'border-green-300', text: 'text-green-700', bar: 'bg-green-500' },
+                blue: { bg: 'bg-blue-100', border: 'border-blue-300', text: 'text-blue-700', bar: 'bg-blue-500' },
+                orange: { bg: 'bg-orange-100', border: 'border-orange-300', text: 'text-orange-700', bar: 'bg-orange-500' },
+                red: { bg: 'bg-red-100', border: 'border-red-300', text: 'text-red-700', bar: 'bg-red-600' },
+            };
+
+            return (
+                <div className="w-full h-full flex items-center justify-center p-8 pb-24">
+                    <div className="max-w-6xl w-full">
+                        <div className="text-center mb-8">
+                            <span className="inline-block px-4 py-1 rounded-full text-sm font-medium mb-4 bg-purple-100 text-purple-600">Sécurité</span>
+                            <h2 className="text-4xl font-bold text-slate-900">SAFEGUARD — <span className="text-purple-600">Le Verrou Humain</span></h2>
+                            <p className="text-gray-500 mt-2">L'IA ne fait <strong>jamais</strong> rien de critique sans permission explicite</p>
+                        </div>
+
+                        <div className="flex gap-6">
+                            {/* Sélecteur de niveau */}
+                            <div className="w-1/3 space-y-2">
+                                {levels.map((l) => (
+                                    <button
+                                        key={l.id}
+                                        onClick={() => setLevel(l.id)}
+                                        className={`w-full p-3 rounded-xl text-left transition-all border-2 ${level === l.id ? `${colorClasses[l.color].border} ${colorClasses[l.color].bg} shadow-md` : 'border-transparent bg-white hover:bg-gray-50'}`}
+                                    >
+                                        <div className="font-bold text-sm text-slate-700">{l.title}</div>
+                                        <div className={`text-xs mt-1 ${level === l.id ? colorClasses[l.color].text : 'text-gray-400'}`}>{l.mode}</div>
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* Détail du niveau */}
+                            <div className="w-2/3 bg-white rounded-3xl shadow-xl overflow-hidden">
+                                <div className={`h-2 ${colorClasses[levels[level].color].bar}`}></div>
+                                <div className="p-8">
+                                    <div className="flex justify-center mb-6">
+                                        <div className={`w-20 h-20 rounded-2xl flex items-center justify-center text-white shadow-lg ${colorClasses[levels[level].color].bar}`}>
+                                            <Shield size={40} />
+                                        </div>
+                                    </div>
+
+                                    <h3 className="text-2xl font-black text-center text-slate-800 mb-2">{levels[level].title}</h3>
+                                    <p className="text-center text-gray-600 mb-6">{levels[level].desc}</p>
+
+                                    <div className={`p-4 rounded-xl ${colorClasses[levels[level].color].bg} border ${colorClasses[levels[level].color].border}`}>
+                                        <div className="text-xs font-bold text-gray-500 uppercase mb-2">Exemple concret</div>
+                                        <p className={`font-medium ${colorClasses[levels[level].color].text}`}>{levels[level].example}</p>
+                                    </div>
+
+                                    <div className="mt-6 text-center">
+                                        <span className={`inline-block px-4 py-2 rounded-full text-sm font-bold ${colorClasses[levels[level].color].bg} ${colorClasses[levels[level].color].text}`}>
+                                            {levels[level].mode}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-6 bg-purple-50 p-4 rounded-xl border border-purple-200 text-center">
+                            <p className="text-sm text-purple-800">
+                                <strong>Conformité HDS :</strong> Les niveaux L3 et L4 garantissent qu'aucune action sensible ne peut être exécutée sans validation humaine explicite.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // ============================================
+        // SLIDE 11: RAG
+        // ============================================
+        function SlideRAG() {
+            return (
+                <div className="w-full h-full flex items-center justify-center p-8 pb-24">
+                    <div className="max-w-6xl w-full">
+                        <div className="text-center mb-8">
+                            <span className="inline-block px-4 py-1 rounded-full text-sm font-medium mb-4 bg-blue-100 text-blue-600">Le Cerveau</span>
+                            <h2 className="text-4xl font-bold text-slate-900">RAG — La Mémoire <span className="text-blue-600">Vivante</span></h2>
+                            <p className="text-gray-500 mt-2">Une base de connaissances qui s'enrichit automatiquement</p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-8">
+                            <div className="bg-white rounded-2xl p-6 shadow-xl">
+                                <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                                    <Database size={20} className="text-blue-500" />
+                                    Sources de données
+                                </h3>
+
+                                <div className="space-y-3">
+                                    <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
+                                        <div className="font-bold text-blue-900">📁 Fichiers Clients (P:\CLIENTS)</div>
+                                        <div className="text-xs text-blue-700">~11 000 fichiers • Infrastructure, contacts, configs</div>
+                                        <div className="text-xs text-gray-500 mt-1">Sync automatique : 3h00 chaque nuit</div>
+                                    </div>
+
+                                    <div className="p-3 bg-purple-50 rounded-xl border border-purple-100">
+                                        <div className="font-bold text-purple-900">📄 Contrats (P:\CONTRATS)</div>
+                                        <div className="text-xs text-purple-700">SLA, engagements, heures ouvrées</div>
+                                        <div className="text-xs text-gray-500 mt-1">Sync automatique : 3h00 chaque nuit</div>
+                                    </div>
+
+                                    <div className="p-3 bg-amber-50 rounded-xl border border-amber-200">
+                                        <div className="font-bold text-amber-900 flex items-center gap-2">
+                                            <Sparkles size={16} />
+                                            Procédures Auto-Générées
+                                        </div>
+                                        <div className="text-xs text-amber-700">Solutions extraites des tickets résolus</div>
+                                        <div className="text-xs text-gray-500 mt-1">Enrichissement : 18h00 chaque jour</div>
+                                    </div>
+                                </div>
+
+                                <div className="mt-4 p-3 bg-slate-100 rounded-xl">
+                                    <div className="text-sm font-bold text-slate-700">Volume actuel estimé</div>
+                                    <div className="text-2xl font-black text-slate-900">~50 000 chunks</div>
+                                    <div className="text-xs text-gray-500">PostgreSQL 16 + pgvector</div>
+                                </div>
+                            </div>
+
+                            <div className="bg-white rounded-2xl p-6 shadow-xl">
+                                <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                                    <Eye size={20} className="text-purple-500" />
+                                    Ce que voit l'agent
+                                </h3>
+
+                                <div className="bg-slate-900 rounded-xl p-4 font-mono text-xs">
+                                    <div className="text-purple-400 mb-3">
+                                        Query: "Problème VPN EHPAD Bellevue"
+                                    </div>
+
+                                    <div className="space-y-2 text-gray-300">
+                                        <div className="bg-slate-800 p-2 rounded">
+                                            <span className="text-emerald-400">[CLIENT]</span> Fiche_Bellevue.docx <span className="text-gray-500">(Score: 0.94)</span><br />
+                                            <span className="text-gray-400">FAI: Orange • IP: 80.12.xx.xx • Contact: M. Dupont</span>
+                                        </div>
+                                        <div className="bg-slate-800 p-2 rounded">
+                                            <span className="text-blue-400">[PROC]</span> Diag_VPN_Orange.md <span className="text-gray-500">(Score: 0.89)</span><br />
+                                            <span className="text-gray-400">1. Ping Gateway... 2. Check IKE Phase 1...</span>
+                                        </div>
+                                        <div className="bg-slate-800 p-2 rounded">
+                                            <span className="text-amber-400">[SOL]</span> Ticket_4102.json <span className="text-gray-500">(Score: 0.85)</span><br />
+                                            <span className="text-gray-400">Résolu 12/10 : Reboot box Orange</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="mt-4 p-3 bg-emerald-50 rounded-xl border border-emerald-200">
+                                    <p className="text-sm text-emerald-800">
+                                        <strong>Avantage clé :</strong> L'agent a accès instantanément au contexte client,
+                                        aux procédures et aux solutions passées — sans chercher manuellement.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // ============================================
+        // SLIDE 12: DASHBOARD
+        // ============================================
+        function SlideDashboard() {
+            return (
+                <div className="w-full h-full flex items-center justify-center p-8 pb-24">
+                    <div className="max-w-6xl w-full">
+                        <div className="text-center mb-8">
+                            <span className="inline-block px-4 py-1 rounded-full text-sm font-medium mb-4 bg-slate-200 text-slate-700">En développement</span>
+                            <h2 className="text-4xl font-bold text-slate-900">Dashboard de <span className="text-slate-600">Monitoring</span></h2>
+                            <p className="text-gray-500 mt-2">Suivi en temps réel de l'activité IA et des coûts</p>
+                        </div>
+
+                        <div className="bg-slate-900 rounded-3xl p-6 shadow-2xl">
+                            {/* Header dashboard */}
+                            <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-700">
+                                <div className="flex items-center gap-3">
+                                    <div className="text-xl font-black text-white">wid<span className="text-blue-400">ip</span></div>
+                                    <span className="text-slate-400 text-sm">Dashboard IA</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-emerald-400 text-sm">
+                                    <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
+                                    Tous les systèmes opérationnels
+                                </div>
+                            </div>
+
+                            {/* Métriques principales */}
+                            <div className="grid grid-cols-4 gap-4 mb-6">
+                                {[
+                                    { label: 'Tickets traités', value: '47', sub: "aujourd'hui", color: 'blue' },
+                                    { label: 'Résolution auto', value: '68%', sub: 'objectif: 70%', color: 'emerald' },
+                                    { label: 'Temps moyen', value: '3.2 min', sub: 'par ticket', color: 'purple' },
+                                    { label: 'Coût API', value: '$0.38', sub: "aujourd'hui", color: 'amber' },
+                                ].map((m, i) => (
+                                    <div key={i} className="bg-slate-800 rounded-xl p-4">
+                                        <div className="text-xs text-slate-400 mb-1">{m.label}</div>
+                                        <div className={`text-2xl font-black text-${m.color}-400`}>{m.value}</div>
+                                        <div className="text-xs text-slate-500">{m.sub}</div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Workflows status */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-slate-800 rounded-xl p-4">
+                                    <div className="text-sm font-bold text-white mb-3">Status Workflows</div>
+                                    <div className="space-y-2">
+                                        {[
+                                            { name: 'WIBOT', status: 'ON', color: 'cyan' },
+                                            { name: 'SENTINEL', status: 'ON', color: 'blue' },
+                                            { name: 'SUPPORT', status: 'ON', color: 'emerald' },
+                                            { name: 'ENRICHISSEUR', status: '18h', color: 'amber' },
+                                        ].map((w, i) => (
+                                            <div key={i} className="flex items-center justify-between">
+                                                <span className="text-slate-300 text-sm">{w.name}</span>
+                                                <span className={`text-xs px-2 py-1 rounded-full bg-${w.color}-500/20 text-${w.color}-400`}>
+                                                    {w.status === 'ON' ? '● ' : '○ '}{w.status}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="bg-slate-800 rounded-xl p-4">
+                                    <div className="text-sm font-bold text-white mb-3">Évolution RAG</div>
+                                    <div className="space-y-2 text-sm">
+                                        <div className="flex justify-between">
+                                            <span className="text-slate-400">Chunks totaux</span>
+                                            <span className="text-white font-mono">52,847</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-slate-400">Procédures auto</span>
+                                            <span className="text-amber-400 font-mono">487 ⭐</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-slate-400">Dernière sync</span>
+                                            <span className="text-emerald-400 font-mono">03:00 ✓</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-slate-400">Dernier enrichissement</span>
+                                            <span className="text-emerald-400 font-mono">18:32 ✓</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-4 text-center text-sm text-gray-500">
+                            Dashboard React + FastAPI — Déploiement prévu T1 2026
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // ============================================
+        // SLIDE 13: COÛTS (LE SLIDE CLÉ)
+        // ============================================
+        function SlideCosts() {
+            return (
+                <div className="w-full h-full flex items-center justify-center p-8 pb-24">
+                    <div className="max-w-6xl w-full">
+                        <div className="text-center mb-8">
+                            <span className="inline-block px-4 py-1 rounded-full text-sm font-medium mb-4 bg-emerald-100 text-emerald-600">Budget</span>
+                            <h2 className="text-4xl font-bold text-slate-900">Coût Total : <span className="text-emerald-600">~17€/mois</span></h2>
+                            <p className="text-gray-500 mt-2">Un investissement négligeable pour des gains majeurs</p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-8">
+                            {/* Détail des coûts */}
+                            <div className="bg-white rounded-2xl p-6 shadow-xl">
+                                <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                                    <PieChart size={20} className="text-blue-500" />
+                                    Détail par workflow
+                                </h3>
+
+                                <div className="space-y-3">
+                                    {[
+                                        { name: 'WIBOT', daily: '$0.22', monthly: '$6.60', pct: 50, color: 'cyan' },
+                                        { name: 'ENRICHISSEUR', daily: '$0.16', monthly: '$4.80', pct: 36, color: 'amber' },
+                                        { name: 'SUPPORT', daily: '$0.04', monthly: '$1.20', pct: 9, color: 'emerald' },
+                                        { name: 'SENTINEL', daily: '$0.02', monthly: '$0.60', pct: 5, color: 'blue' },
+                                    ].map((w, i) => (
+                                        <div key={i} className="flex items-center gap-4">
+                                            <div className={`w-3 h-3 rounded-full bg-${w.color}-500`}></div>
+                                            <div className="flex-1">
+                                                <div className="flex justify-between text-sm">
+                                                    <span className="font-medium">{w.name}</span>
+                                                    <span className="text-gray-500">{w.monthly}/mois</span>
+                                                </div>
+                                                <div className="h-2 bg-gray-100 rounded-full mt-1 overflow-hidden">
+                                                    <div className={`h-full bg-${w.color}-500 rounded-full`} style={{ width: `${w.pct}%` }}></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="mt-6 p-4 bg-slate-100 rounded-xl">
+                                    <div className="flex justify-between items-center">
+                                        <span className="font-bold">TOTAL API Devstral</span>
+                                        <span className="text-2xl font-black text-slate-900">$13.20/mois</span>
+                                    </div>
+                                    <div className="flex justify-between items-center mt-2 text-sm text-gray-600">
+                                        <span>+ Infrastructure (existante)</span>
+                                        <span>~$5/mois</span>
+                                    </div>
+                                    <div className="border-t border-gray-300 mt-3 pt-3 flex justify-between items-center">
+                                        <span className="font-black text-lg">TOTAL</span>
+                                        <span className="text-3xl font-black text-emerald-600">~17€/mois</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Comparaison */}
+                            <div className="space-y-4">
+                                <div className="bg-white rounded-2xl p-6 shadow-xl">
+                                    <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                                        <BarChart size={20} className="text-purple-500" />
+                                        Comparaison avec alternatives
+                                    </h3>
+
+                                    <div className="space-y-4">
+                                        <div>
+                                            <div className="flex justify-between text-sm mb-1">
+                                                <span>VM GPU locale (24/7)</span>
+                                                <span className="font-bold text-red-600">~1 000€/mois</span>
+                                            </div>
+                                            <div className="h-4 bg-red-100 rounded-full overflow-hidden">
+                                                <div className="h-full bg-red-500 rounded-full" style={{ width: '100%' }}></div>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <div className="flex justify-between text-sm mb-1">
+                                                <span>Dust Pro (15 users) + API</span>
+                                                <span className="font-bold text-orange-600">~500€/mois</span>
+                                            </div>
+                                            <div className="h-4 bg-orange-100 rounded-full overflow-hidden">
+                                                <div className="h-full bg-orange-500 rounded-full" style={{ width: '50%' }}></div>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <div className="flex justify-between text-sm mb-1">
+                                                <span className="font-bold">WIDIP IA V13</span>
+                                                <span className="font-bold text-emerald-600">~17€/mois</span>
+                                            </div>
+                                            <div className="h-4 bg-emerald-100 rounded-full overflow-hidden">
+                                                <div className="h-full bg-emerald-500 rounded-full" style={{ width: '1.7%' }}></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-2xl p-6 text-white shadow-xl">
+                                    <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                                        <Award size={20} />
+                                        Économies réalisées
+                                    </h3>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="text-center">
+                                            <div className="text-4xl font-black">98.5%</div>
+                                            <div className="text-sm opacity-80">vs VM locale</div>
+                                        </div>
+                                        <div className="text-center">
+                                            <div className="text-4xl font-black">97%</div>
+                                            <div className="text-sm opacity-80">vs Dust</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+                                    <p className="text-sm text-blue-800">
+                                        <strong>💡 Pourquoi si peu cher ?</strong><br />
+                                        API Devstral certifiée HDS, pas d'infra GPU à gérer,
+                                        et un volume de requêtes modéré (~400/jour).
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // ============================================
+        // SLIDE 14: BÉNÉFICES
+        // ============================================
+        function SlideBenefits() {
+            return (
+                <div className="w-full h-full flex items-center justify-center p-8 pb-24">
+                    <div className="max-w-6xl w-full">
+                        <div className="text-center mb-10">
+                            <span className="inline-block px-4 py-1 rounded-full text-sm font-medium mb-4 bg-emerald-100 text-emerald-600">ROI</span>
+                            <h2 className="text-4xl font-bold text-slate-900">Les Bénéfices <span className="text-emerald-600">Concrets</span></h2>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-6 mb-8">
+                            {[
+                                {
+                                    icon: Clock,
+                                    title: 'Temps gagné',
+                                    desc: "Recherche d'info, qualification tickets, procédures répétitives",
+                                    color: 'blue'
+                                },
+                                {
+                                    icon: TrendingUp,
+                                    title: 'Réactivité',
+                                    desc: 'Détection proactive des pannes avant appel client',
+                                    color: 'emerald'
+                                },
+                                {
+                                    icon: Users,
+                                    title: 'Partage du savoir',
+                                    desc: 'Les solutions trouvées profitent à toute l\'équipe',
+                                    color: 'purple'
+                                },
+                            ].map((b, i) => (
+                                <div key={i} className={`bg-white rounded-2xl p-6 shadow-xl border-t-4 border-${b.color}-500`}>
+                                    <div className={`w-14 h-14 rounded-xl bg-${b.color}-100 flex items-center justify-center mb-4`}>
+                                        <b.icon size={28} className={`text-${b.color}-600`} />
+                                    </div>
+                                    <div className="font-bold text-slate-800 mb-1 text-xl">{b.title}</div>
+                                    <div className="text-sm text-gray-500">{b.desc}</div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-6">
+                            <div className="bg-white rounded-2xl p-6 shadow-xl">
+                                <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                                    <Heart size={20} className="text-red-500" />
+                                    Pour les techniciens
+                                </h3>
+                                <ul className="space-y-3">
+                                    {[
+                                        'Moins de tâches répétitives et frustrantes',
+                                        'Accès instantané à l\'historique et aux procédures',
+                                        'Formation accélérée des nouveaux',
+                                        'Focus sur les problèmes complexes à haute valeur',
+                                    ].map((item, i) => (
+                                        <li key={i} className="flex items-start gap-2 text-sm">
+                                            <CheckCircle size={18} className="text-emerald-500 shrink-0 mt-0.5" />
+                                            <span>{item}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+
+                            <div className="bg-white rounded-2xl p-6 shadow-xl">
+                                <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                                    <Building size={20} className="text-blue-500" />
+                                    Pour WIDIP
+                                </h3>
+                                <ul className="space-y-3">
+                                    {[
+                                        'Meilleure satisfaction client (réactivité)',
+                                        'Capitalisation du savoir-faire (pérennité)',
+                                        'Scalabilité sans embauche proportionnelle',
+                                        'Conformité HDS maintenue (Mistral certifié)',
+                                    ].map((item, i) => (
+                                        <li key={i} className="flex items-start gap-2 text-sm">
+                                            <CheckCircle size={18} className="text-blue-500 shrink-0 mt-0.5" />
+                                            <span>{item}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // ============================================
+        // SLIDE 15: CONCLUSION
+        // ============================================
+        function SlideConclusion() {
+            return (
+                <div className="w-full h-full flex items-center justify-center p-8 pb-24">
+                    <div className="max-w-5xl w-full text-center">
+                        <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-2xl mb-8">
+                            <Rocket size={48} />
+                        </div>
+
+                        <h2 className="text-5xl font-black text-slate-900 mb-6">Prêts pour la <span className="gradient-text">V13</span> !</h2>
+
+                        <p className="text-xl text-gray-500 mb-12 max-w-3xl mx-auto">
+                            Une architecture pensée pour le terrain :
+                            <span className="text-cyan-600 font-bold"> assister les techniciens</span>,
+                            <span className="text-blue-600 font-bold"> anticiper les pannes</span>,
+                            <span className="text-amber-600 font-bold"> capitaliser le savoir</span> et
+                            <span className="text-purple-600 font-bold"> garantir la sécurité</span>.
+                        </p>
+
+                        <div className="grid grid-cols-5 gap-4 max-w-4xl mx-auto mb-12">
+                            {[
+                                { label: 'WIBOT', sub: 'Assistant', color: 'cyan' },
+                                { label: 'SENTINEL', sub: 'Proactif', color: 'blue' },
+                                { label: 'SUPPORT', sub: 'Réactif', color: 'emerald' },
+                                { label: 'ENRICHISSEUR', sub: 'Évolutif', color: 'amber' },
+                                { label: 'SAFEGUARD', sub: 'Sécurisé', color: 'purple' },
+                            ].map((item, i) => (
+                                <div key={i} className={`bg-white p-4 rounded-xl shadow-md border-t-4 border-${item.color}-500`}>
+                                    <div className="font-bold text-slate-900">{item.label}</div>
+                                    <div className="text-xs text-gray-500">{item.sub}</div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="bg-gradient-to-r from-emerald-50 to-blue-50 rounded-3xl p-8 border border-emerald-200 max-w-2xl mx-auto">
+                            <div className="grid grid-cols-3 gap-6 text-center">
+                                <div>
+                                    <div className="text-4xl font-black text-emerald-600">17€</div>
+                                    <div className="text-sm text-gray-600">par mois</div>
+                                </div>
+                                <div>
+                                    <div className="text-4xl font-black text-blue-600">70%</div>
+                                    <div className="text-sm text-gray-600">autonomie visée</div>
+                                </div>
+                                <div>
+                                    <div className="text-4xl font-black text-purple-600">0</div>
+                                    <div className="text-sm text-gray-600">risque HDS</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-12 text-slate-400 text-sm">
+                            <p>Merci de votre attention</p>
+                            <p className="font-mono mt-2">WIDIP IA — Décembre 2025</p>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // ============================================
+        // RENDER
+        // ============================================
+        ReactDOM.createRoot(document.getElementById('root')).render(<WIDIPPresentationV13 />);
+    </script>
+</body>
+
+</html>

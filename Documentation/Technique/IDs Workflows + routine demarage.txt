@@ -1,0 +1,53 @@
+API OLLAMA:9b2d80f1962c49f5acb090580c2ae50b.Zf_qS6v9Y-oF7OXC5VnRMA59
+ID OVH : wh38667-ovh 
+IP VM: 10.238.110.30
+IDs Workflows : 
+WIDIP_Proactif_Observium_MCP_Observium:QMnaB7g1DpUfN9rK
+WIDIP_Proactif_Observium_v4_MCP_Phibee_telecom:Tg7LLuwXOvgTyB0h
+WIDIP_MCP_GLPI_v6:juHWzwO4WgW9LX0B
+WIDIP_Proactif_Observium_MCP_SMTP:9R8EEGECrVexWdW7
+WIDIP_MCP_ActiveDirectory_v1:2tSBUs69Kn3NYxxT
+WIDIP_MCP_MySecret_v1:geNUXjUljodz4CPG
+WIDIP_Redis_Helper_v2.2:aCuwZ3jJb1c2dMVY
+WIDIP_Assist_ticket_v4:8muMSPoq5CW8oHGq
+WIDIP_Proactif_Observium_v8:zBYBmEHgXDT2nWHJ
+
+Liens MCP:
+MCP Server Observium:http://0.0.0.0:5678/mcp-test/mcp-observium/sse
+MCP Server Phibee:http://0.0.0.0:5678/mcp-test/mcp-phibee/sse
+MCP Server GLPI:http://0.0.0.0:5678/mcp-test/mcp-glpi-server/sse
+MCP Server SMTP:http://0.0.0.0:5678/mcp-test/mcp-email/sse
+MCP Server AD:http://0.0.0.0:5678/mcp-test/mcp-ad/sse
+MCP Server MySecret:http://0.0.0.0:5678/mcp-test/mcp-mysecret/sse
+
+Routine: 
+sudo su -
+cd /root/widip-automation
+docker compose up -d
+docker compose ps
+Visualisation : https://10.238.110.30:9443/#!/3/docker/containers
+Application Key:0417c7a37631155f
+Application Secret:aaf86a34828c7c46c68c36359df55f24
+Consumer Key:327271073272e7cbc0ebc4d0e538f4d2
+Project-ID:c026468a416b45789b507a1b9fbda8a7
+
+root@lab-maxime:~/widip-automation# ssh-keygen -t ed25519 -C "widip-gpu" -f ~/.ssh/widip_gpu_key -N ""
+Generating public/private ed25519 key pair.
+Your identification has been saved in /root/.ssh/widip_gpu_key
+Your public key has been saved in /root/.ssh/widip_gpu_key.pub
+The key fingerprint is:
+SHA256:rbdaRXR8d69Vw+OpAInY4/Fm7hNgHNDZtknd7ydSaoQ widip-gpu
+The key's randomart image is:
++--[ED25519 256]--+
+|     .= + o o.o  |
+|     . O * o o.+=|
+|      o B +.. o.O|
+|       = BEo. .+o|
+|      . S ..oooo |
+|         + .+.o..|
+|        o +. . ..|
+|         = .     |
+|        ..o      |
++----[SHA256]-----+
+root@lab-maxime:~/widip-automation# cat ~/.ssh/widip_gpu_key.pub
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIARWNzoYf6UZDkaJv/HgYFTU2TtT0RaPy/f0EkNGY9QF widip-gpu

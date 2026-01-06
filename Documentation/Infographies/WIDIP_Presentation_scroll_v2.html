@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WIDIP - Présentation Direction | Intelligence Artificielle Support IT</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --widip-primary: #6366f1;
+            --widip-secondary: #8b5cf6;
+            --widip-accent: #06b6d4;
+            --widip-success: #10b981;
+            --widip-warning: #f59e0b;
+            --widip-danger: #ef4444;
+            --widip-dark: #1e1b4b;
+        }
+        * { font-family: 'Plus Jakarta Sans', sans-serif; }
+        body { background: linear-gradient(135deg, #e0f2fe 0%, #f0e6ff 50%, #fce7f3 100%); min-height: 100vh; }
+        .header-title { font-family: 'Space Grotesk', sans-serif; }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.9);
+            box-shadow: 0 8px 32px rgba(99, 102, 241, 0.1);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glass-card:hover { transform: translateY(-4px); box-shadow: 0 20px 40px rgba(99, 102, 241, 0.2); }
+        .section-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 24px;
+            padding: 2rem;
+            border: 1px solid rgba(99, 102, 241, 0.1);
+            transition: all 0.4s ease;
+        }
+        .section-card:hover { box-shadow: 0 25px 50px -12px rgba(99, 102, 241, 0.25); }
+        .agent-card {
+            background: white;
+            border-radius: 20px;
+            padding: 1.5rem;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .agent-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 4px;
+            background: var(--agent-color);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+        .agent-card:hover::before { transform: scaleX(1); }
+        .agent-card:hover { border-color: var(--agent-color); box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); }
+        .agent-card .icon-wrapper {
+            width: 60px; height: 60px;
+            border-radius: 16px;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.3s ease;
+        }
+        .agent-card:hover .icon-wrapper { transform: scale(1.1) rotate(-5deg); }
+        .kpi-number {
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--widip-primary), var(--widip-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .progress-bar { height: 8px; border-radius: 4px; background: #e2e8f0; overflow: hidden; }
+        .progress-fill { height: 100%; border-radius: 4px; transition: width 1s ease; }
+        .fade-in-up { opacity: 0; transform: translateY(30px); animation: fadeInUp 0.6s ease forwards; }
+        @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
+        .modal-backdrop { background: rgba(30, 27, 75, 0.7); backdrop-filter: blur(8px); }
+        .modal-content { background: white; border-radius: 24px; max-width: 700px; max-height: 85vh; overflow-y: auto; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: linear-gradient(var(--widip-primary), var(--widip-secondary)); border-radius: 4px; }
+    </style>
+</head>
+<body class="text-gray-800">
+    <!-- Header -->
+    <header class="py-8 px-6">
+        <div class="max-w-6xl mx-auto">
+            <div class="glass-card rounded-3xl p-8 fade-in-up">
+                <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+                    <div>
+                        <div class="flex items-center gap-3 mb-2">
+                            <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                                <i class="fas fa-robot text-white text-xl"></i>
+                            </div>
+                            <h1 class="header-title text-4xl font-bold text-gray-900">WIDIP <span class="text-indigo-600">IA</span></h1>
+                        </div>
+                        <p class="text-gray-600 text-lg">Système Intelligent pour le Support IT Médico-Social</p>
+                    </div>
+                    <div class="flex flex-wrap gap-3">
+                        <span class="px-4 py-2 bg-emerald-100 text-emerald-700 rounded-full text-sm font-semibold flex items-center gap-2">
+                            <i class="fas fa-shield-alt"></i> HDS Certifié
+                        </span>
+                        <span class="px-4 py-2 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold flex items-center gap-2">
+                            <i class="fas fa-certificate"></i> ISO 27001
+                        </span>
+                        <span class="px-4 py-2 bg-purple-100 text-purple-700 rounded-full text-sm font-semibold flex items-center gap-2">
+                            <i class="fas fa-code-branch"></i> Version 14
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation -->
+    <nav class="sticky top-4 z-50 px-6 mb-8">
+        <div class="max-w-4xl mx-auto">
+            <div class="glass-card rounded-full py-3 px-6">
+                <div class="flex items-center justify-center gap-2 flex-wrap">
+                    <a href="#vision" class="px-4 py-2 rounded-full text-sm font-medium hover:bg-indigo-100 hover:text-indigo-700 transition-all">Vision</a>
+                    <a href="#kpis" class="px-4 py-2 rounded-full text-sm font-medium hover:bg-indigo-100 hover:text-indigo-700 transition-all">Objectifs</a>
+                    <a href="#agents" class="px-4 py-2 rounded-full text-sm font-medium hover:bg-indigo-100 hover:text-indigo-700 transition-all">Les 5 Agents</a>
+                    <a href="#workflows" class="px-4 py-2 rounded-full text-sm font-medium hover:bg-indigo-100 hover:text-indigo-700 transition-all">Workflows</a>
+                    <a href="#securite" class="px-4 py-2 rounded-full text-sm font-medium hover:bg-indigo-100 hover:text-indigo-700 transition-all">Sécurité</a>
+                    <a href="#couts" class="px-4 py-2 rounded-full text-sm font-medium hover:bg-indigo-100 hover:text-indigo-700 transition-all">Coûts</a>
+                    <a href="#roadmap" class="px-4 py-2 rounded-full text-sm font-medium hover:bg-indigo-100 hover:text-indigo-700 transition-all">Roadmap</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="px-6 pb-16 space-y-16">
+        
+        <!-- Section 1: Vision & Contexte -->
+        <section id="vision" class="max-w-6xl mx-auto">
+            <div class="section-card fade-in-up">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center">
+                        <i class="fas fa-lightbulb text-white text-2xl"></i>
+                    </div>
+                    <div>
+                        <h2 class="header-title text-2xl font-bold text-gray-900">Vision & Contexte</h2>
+                        <p class="text-gray-500">Pourquoi WIDIP IA ?</p>
+                    </div>
+                </div>
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div class="space-y-4">
+                        <h3 class="font-semibold text-lg text-gray-800 flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-indigo-500"></span> Le Défi
+                        </h3>
+                        <div class="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-6 border border-indigo-100">
+                            <div class="grid grid-cols-2 gap-4 mb-4">
+                                <div class="text-center p-4 bg-white rounded-xl shadow-sm">
+                                    <p class="kpi-number text-3xl">600+</p>
+                                    <p class="text-sm text-gray-600 mt-1">Établissements</p>
+                                    <p class="text-xs text-gray-400">EHPAD, Cliniques, Associations</p>
+                                </div>
+                                <div class="text-center p-4 bg-white rounded-xl shadow-sm">
+                                    <p class="kpi-number text-3xl">20 000</p>
+                                    <p class="text-sm text-gray-600 mt-1">Tickets / an</p>
+                                    <p class="text-xs text-gray-400">Support IT à traiter</p>
+                                </div>
+                            </div>
+                            <p class="text-gray-600 text-sm leading-relaxed">
+                                Notre équipe support gère un volume croissant de demandes pour le secteur médico-social français. 
+                                Beaucoup de ces tickets sont <strong>répétitifs</strong> et pourraient être automatisés.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="space-y-4">
+                        <h3 class="font-semibold text-lg text-gray-800 flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500"></span> La Solution WIDIP IA
+                        </h3>
+                        <div class="bg-gradient-to-br from-emerald-50 to-cyan-50 rounded-2xl p-6 border border-emerald-100">
+                            <p class="text-gray-700 leading-relaxed mb-4">
+                                WIDIP IA est un <strong>système d'intelligence artificielle</strong> qui assiste les techniciens en :
+                            </p>
+                            <ul class="space-y-3">
+                                <li class="flex items-start gap-3">
+                                    <span class="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                        <i class="fas fa-check text-emerald-600 text-xs"></i>
+                                    </span>
+                                    <span class="text-gray-600"><strong>Diagnostiquant automatiquement</strong> les problèmes courants</span>
+                                </li>
+                                <li class="flex items-start gap-3">
+                                    <span class="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                        <i class="fas fa-check text-emerald-600 text-xs"></i>
+                                    </span>
+                                    <span class="text-gray-600"><strong>Proposant des solutions</strong> basées sur l'historique</span>
+                                </li>
+                                <li class="flex items-start gap-3">
+                                    <span class="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                        <i class="fas fa-check text-emerald-600 text-xs"></i>
+                                    </span>
+                                    <span class="text-gray-600"><strong>Surveillant proactivement</strong> le réseau 24h/24</span>
+                                </li>
+                                <li class="flex items-start gap-3">
+                                    <span class="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                        <i class="fas fa-check text-emerald-600 text-xs"></i>
+                                    </span>
+                                    <span class="text-gray-600"><strong>Apprenant continuellement</strong> des résolutions passées</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-8 p-6 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl text-white">
+                    <div class="flex items-center gap-4">
+                        <div class="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-quote-left text-2xl"></i>
+                        </div>
+                        <p class="text-lg font-medium leading-relaxed">
+                            "WIDIP IA ne remplace pas les techniciens : il les <strong>libère des tâches répétitives</strong> 
+                            pour qu'ils se concentrent sur les incidents complexes à forte valeur ajoutée."
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 2: KPIs -->
+        <section id="kpis" class="max-w-6xl mx-auto">
+            <div class="section-card fade-in-up">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
+                        <i class="fas fa-chart-line text-white text-2xl"></i>
+                    </div>
+                    <div>
+                        <h2 class="header-title text-2xl font-bold text-gray-900">Objectifs & Indicateurs</h2>
+                        <p class="text-gray-500">Ce que WIDIP IA va apporter</p>
+                    </div>
+                </div>
+                <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-2xl p-6 text-center hover:shadow-lg transition-all">
+                        <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-indigo-500 flex items-center justify-center">
+                            <i class="fas fa-robot text-white text-2xl"></i>
+                        </div>
+                        <p class="kpi-number text-4xl mb-2">70%</p>
+                        <p class="font-semibold text-gray-800">Autonomie</p>
+                        <p class="text-sm text-gray-500 mt-1">Résolution auto ou assistée</p>
+                        <div class="mt-4">
+                            <div class="progress-bar"><div class="progress-fill bg-indigo-500" style="width: 30%"></div></div>
+                        </div>
+                    </div>
+                    <div class="bg-gradient-to-br from-cyan-50 to-cyan-100 rounded-2xl p-6 text-center hover:shadow-lg transition-all">
+                        <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-cyan-500 flex items-center justify-center">
+                            <i class="fas fa-bolt text-white text-2xl"></i>
+                        </div>
+                        <p class="kpi-number text-4xl mb-2">&lt;5min</p>
+                        <p class="font-semibold text-gray-800">Temps de réponse</p>
+                        <p class="text-sm text-gray-500 mt-1">Diagnostic automatique</p>
+                        <div class="mt-4">
+                            <div class="progress-bar"><div class="progress-fill bg-cyan-500" style="width: 100%"></div></div>
+                            <p class="text-xs text-emerald-600 mt-1 font-medium">✓ Objectif atteint</p>
+                        </div>
+                    </div>
+                    <div class="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-2xl p-6 text-center hover:shadow-lg transition-all">
+                        <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-emerald-500 flex items-center justify-center">
+                            <i class="fas fa-brain text-white text-2xl"></i>
+                        </div>
+                        <p class="kpi-number text-4xl mb-2">+50</p>
+                        <p class="font-semibold text-gray-800">Procédures / mois</p>
+                        <p class="text-sm text-gray-500 mt-1">Auto-générées par l'IA</p>
+                        <div class="mt-4">
+                            <div class="progress-bar"><div class="progress-fill bg-emerald-500" style="width: 60%"></div></div>
+                            <p class="text-xs text-gray-400 mt-1">En progression continue</p>
+                        </div>
+                    </div>
+                    <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-6 text-center hover:shadow-lg transition-all">
+                        <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-purple-500 flex items-center justify-center">
+                            <i class="fas fa-euro-sign text-white text-2xl"></i>
+                        </div>
+                        <p class="kpi-number text-4xl mb-2">20-50€</p>
+                        <p class="font-semibold text-gray-800">Coût mensuel</p>
+                        <p class="text-sm text-gray-500 mt-1">Infrastructure IA</p>
+                        <div class="mt-4">
+                            <div class="progress-bar"><div class="progress-fill bg-purple-500" style="width: 100%"></div></div>
+                            <p class="text-xs text-emerald-600 mt-1 font-medium">✓ Budget maîtrisé</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="grid md:grid-cols-3 gap-6">
+                    <div class="p-5 bg-white rounded-xl border border-gray-100 hover:border-indigo-200 transition-all">
+                        <div class="flex items-center gap-3 mb-3">
+                            <span class="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+                                <i class="fas fa-piggy-bank text-blue-600"></i>
+                            </span>
+                            <h4 class="font-semibold text-gray-800">Réduction des coûts</h4>
+                        </div>
+                        <p class="text-gray-600 text-sm">Moins de temps passé sur les tickets simples = plus de productivité pour les équipes.</p>
+                    </div>
+                    <div class="p-5 bg-white rounded-xl border border-gray-100 hover:border-indigo-200 transition-all">
+                        <div class="flex items-center gap-3 mb-3">
+                            <span class="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
+                                <i class="fas fa-smile text-emerald-600"></i>
+                            </span>
+                            <h4 class="font-semibold text-gray-800">Qualité de service</h4>
+                        </div>
+                        <p class="text-gray-600 text-sm">Réponses plus rapides et cohérentes pour les établissements de santé.</p>
+                    </div>
+                    <div class="p-5 bg-white rounded-xl border border-gray-100 hover:border-indigo-200 transition-all">
+                        <div class="flex items-center gap-3 mb-3">
+                            <span class="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
+                                <i class="fas fa-shield-alt text-purple-600"></i>
+                            </span>
+                            <h4 class="font-semibold text-gray-800">Conformité garantie</h4>
+                        </div>
+                        <p class="text-gray-600 text-sm">Données hébergées en France, certifications HDS et ISO 27001 respectées.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 3: Les 5 Agents -->
+        <section id="agents" class="max-w-6xl mx-auto">
+            <div class="section-card fade-in-up">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center">
+                        <i class="fas fa-users-cog text-white text-2xl"></i>
+                    </div>
+                    <div>
+                        <h2 class="header-title text-2xl font-bold text-gray-900">Les 5 Agents IA</h2>
+                        <p class="text-gray-500">Chacun a un rôle spécialisé</p>
+                    </div>
+                </div>
+                <p class="text-gray-600 mb-8 max-w-3xl">
+                    WIDIP IA repose sur <strong>5 agents intelligents</strong>, chacun spécialisé dans une tâche précise. 
+                    Ils travaillent ensemble pour couvrir l'ensemble du cycle de support IT.
+                    <span class="text-indigo-600 font-medium">Cliquez sur un agent pour en savoir plus.</span>
+                </p>
+                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- SENTINEL -->
+                    <div class="agent-card" style="--agent-color: #f59e0b" onclick="openAgentModal('sentinel')">
+                        <div class="flex items-start gap-4">
+                            <div class="icon-wrapper bg-amber-100">
+                                <i class="fas fa-satellite-dish text-amber-600 text-2xl"></i>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="font-bold text-gray-900 text-lg">SENTINEL</h3>
+                                <p class="text-amber-600 text-sm font-medium">Surveillance Proactive</p>
+                                <p class="text-gray-500 text-sm mt-2">Surveille le réseau 24h/24 et anticipe les pannes avant qu'elles n'impactent les utilisateurs.</p>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex items-center justify-between text-xs">
+                            <span class="px-2 py-1 bg-amber-50 text-amber-700 rounded-lg">Alertes Observium</span>
+                            <span class="text-gray-400"><i class="fas fa-clock mr-1"></i>Temps réel</span>
+                        </div>
+                    </div>
+                    <!-- SUPPORT -->
+                    <div class="agent-card" style="--agent-color: #8b5cf6" onclick="openAgentModal('support')">
+                        <div class="flex items-start gap-4">
+                            <div class="icon-wrapper bg-purple-100">
+                                <i class="fas fa-headset text-purple-600 text-2xl"></i>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="font-bold text-gray-900 text-lg">SUPPORT</h3>
+                                <p class="text-purple-600 text-sm font-medium">Assistant Tickets</p>
+                                <p class="text-gray-500 text-sm mt-2">Résolution autonome des tickets autorisé par le Safeguard et demande au technicien pour les requêtes L3 et L4.</p>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex items-center justify-between text-xs">
+                            <span class="px-2 py-1 bg-purple-50 text-purple-700 rounded-lg">Tickets GLPI</span>
+                            <span class="text-gray-400"><i class="fas fa-bolt mr-1"></i>10-15 sec</span>
+                        </div>
+                    </div>
+                    <!-- ENRICHISSEUR -->
+                    <div class="agent-card" style="--agent-color: #10b981" onclick="openAgentModal('enrichisseur')">
+                        <div class="flex items-start gap-4">
+                            <div class="icon-wrapper bg-emerald-100">
+                                <i class="fas fa-graduation-cap text-emerald-600 text-2xl"></i>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="font-bold text-gray-900 text-lg">ENRICHISSEUR</h3>
+                                <p class="text-emerald-600 text-sm font-medium">Amélioration Continue</p>
+                                <p class="text-gray-500 text-sm mt-2">Apprend des tickets résolus pour enrichir la base de connaissances automatiquement.</p>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex items-center justify-between text-xs">
+                            <span class="px-2 py-1 bg-emerald-50 text-emerald-700 rounded-lg">Auto-apprentissage</span>
+                            <span class="text-gray-400"><i class="fas fa-calendar mr-1"></i>Quotidien 18h</span>
+                        </div>
+                    </div>
+                    <!-- SAFEGUARD -->
+                    <div class="agent-card" style="--agent-color: #ef4444" onclick="openAgentModal('safeguard')">
+                        <div class="flex items-start gap-4">
+                            <div class="icon-wrapper bg-red-100">
+                                <i class="fas fa-shield-alt text-red-600 text-2xl"></i>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="font-bold text-gray-900 text-lg">SAFEGUARD</h3>
+                                <p class="text-red-600 text-sm font-medium">Verrou de Sécurité</p>
+                                <p class="text-gray-500 text-sm mt-2">Contrôle toutes les actions de l'IA et bloque celles qui nécessitent une validation humaine.</p>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex items-center justify-between text-xs">
+                            <span class="px-2 py-1 bg-red-50 text-red-700 rounded-lg">Niveaux L0-L4</span>
+                            <span class="text-gray-400"><i class="fas fa-lock mr-1"></i>Obligatoire</span>
+                        </div>
+                    </div>
+                    <!-- WIBOT -->
+                    <div class="agent-card" style="--agent-color: #06b6d4" onclick="openAgentModal('wibot')">
+                        <div class="flex items-start gap-4">
+                            <div class="icon-wrapper bg-cyan-100">
+                                <i class="fas fa-comments text-cyan-600 text-2xl"></i>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="font-bold text-gray-900 text-lg">WIBOT</h3>
+                                <p class="text-cyan-600 text-sm font-medium">Assistant Technicien</p>
+                                <p class="text-gray-500 text-sm mt-2">Interface conversationnelle pour les techniciens : recherche, conseils, documentation.</p>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex items-center justify-between text-xs">
+                            <span class="px-2 py-1 bg-cyan-50 text-cyan-700 rounded-lg">Chat interne</span>
+                            <span class="text-gray-400"><i class="fas fa-users mr-1"></i>15 techniciens</span>
+                        </div>
+                    </div>
+                    <!-- MCP -->
+                    <div class="bg-gradient-to-br from-gray-50 to-indigo-50 rounded-2xl p-6 border-2 border-dashed border-indigo-200 flex flex-col items-center justify-center text-center">
+                        <i class="fas fa-project-diagram text-indigo-400 text-4xl mb-4"></i>
+                        <h4 class="font-semibold text-gray-700 mb-2">Coordination Centrale</h4>
+                        <p class="text-sm text-gray-500">Tous les agents communiquent via le <strong>MCP Server</strong>, un serveur centralisé qui expose 30 outils.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 4: Workflows -->
+        <section id="workflows" class="max-w-6xl mx-auto">
+            <div class="section-card fade-in-up">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center">
+                        <i class="fas fa-sitemap text-white text-2xl"></i>
+                    </div>
+                    <div>
+                        <h2 class="header-title text-2xl font-bold text-gray-900">Comment ça fonctionne ?</h2>
+                        <p class="text-gray-500">Les workflows automatisés</p>
+                    </div>
+                </div>
+                <!-- Workflow 1 -->
+                <div class="mb-8">
+                    <h3 class="font-semibold text-lg text-gray-800 mb-4 flex items-center gap-2">
+                        <span class="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center"><span class="text-amber-600 font-bold">1</span></span>
+                        Surveillance Proactive (SENTINEL)
+                    </h3>
+                    <div class="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-6 border border-amber-100">
+                        <div class="flex flex-wrap items-center gap-4 justify-center">
+                            <div class="flex flex-col items-center text-center">
+                                <div class="w-14 h-14 rounded-xl bg-white shadow-sm flex items-center justify-center mb-2"><i class="fas fa-server text-gray-500 text-xl"></i></div>
+                                <span class="text-xs font-medium text-gray-600">Observium</span>
+                                <span class="text-xs text-gray-400">Détecte alerte</span>
+                            </div>
+                            <i class="fas fa-arrow-right text-amber-400"></i>
+                            <div class="flex flex-col items-center text-center">
+                                <div class="w-14 h-14 rounded-xl bg-white shadow-sm flex items-center justify-center mb-2"><i class="fas fa-satellite-dish text-amber-500 text-xl"></i></div>
+                                <span class="text-xs font-medium text-gray-600">SENTINEL</span>
+                                <span class="text-xs text-gray-400">Analyse</span>
+                            </div>
+                            <i class="fas fa-arrow-right text-amber-400"></i>
+                            <div class="flex flex-col items-center text-center">
+                                <div class="w-14 h-14 rounded-xl bg-white shadow-sm flex items-center justify-center mb-2"><i class="fas fa-database text-indigo-500 text-xl"></i></div>
+                                <span class="text-xs font-medium text-gray-600">RAG</span>
+                                <span class="text-xs text-gray-400">Contexte</span>
+                            </div>
+                            <i class="fas fa-arrow-right text-amber-400"></i>
+                            <div class="flex flex-col items-center text-center">
+                                <div class="w-14 h-14 rounded-xl bg-white shadow-sm flex items-center justify-center mb-2"><i class="fas fa-ticket-alt text-emerald-500 text-xl"></i></div>
+                                <span class="text-xs font-medium text-gray-600">GLPI</span>
+                                <span class="text-xs text-gray-400">Ticket créé</span>
+                            </div>
+                            <i class="fas fa-arrow-right text-amber-400"></i>
+                            <div class="flex flex-col items-center text-center">
+                                <div class="w-14 h-14 rounded-xl bg-white shadow-sm flex items-center justify-center mb-2"><i class="fas fa-bell text-purple-500 text-xl"></i></div>
+                                <span class="text-xs font-medium text-gray-600">Notification</span>
+                                <span class="text-xs text-gray-400">Équipe alertée</span>
+                            </div>
+                        </div>
+                        <p class="text-center text-sm text-gray-600 mt-4"><i class="fas fa-info-circle text-amber-500 mr-1"></i>Un équipement tombe en panne → L'IA crée automatiquement un ticket avec le diagnostic et prévient l'équipe.</p>
+                    </div>
+                </div>
+                <!-- Workflow 2 -->
+                <div class="mb-8">
+                    <h3 class="font-semibold text-lg text-gray-800 mb-4 flex items-center gap-2">
+                        <span class="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center"><span class="text-purple-600 font-bold">2</span></span>
+                        Assistance Tickets (SUPPORT)
+                    </h3>
+                    <div class="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-2xl p-6 border border-purple-100">
+                        <div class="flex flex-wrap items-center gap-4 justify-center">
+                            <div class="flex flex-col items-center text-center">
+                                <div class="w-14 h-14 rounded-xl bg-white shadow-sm flex items-center justify-center mb-2"><i class="fas fa-ticket-alt text-gray-500 text-xl"></i></div>
+                                <span class="text-xs font-medium text-gray-600">Ticket</span>
+                                <span class="text-xs text-gray-400">Nouveau</span>
+                            </div>
+                            <i class="fas fa-arrow-right text-purple-400"></i>
+                            <div class="flex flex-col items-center text-center">
+                                <div class="w-14 h-14 rounded-xl bg-white shadow-sm flex items-center justify-center mb-2"><i class="fas fa-headset text-purple-500 text-xl"></i></div>
+                                <span class="text-xs font-medium text-gray-600">SUPPORT</span>
+                                <span class="text-xs text-gray-400">Analyse</span>
+                            </div>
+                            <i class="fas fa-arrow-right text-purple-400"></i>
+                            <div class="flex flex-col items-center text-center">
+                                <div class="w-14 h-14 rounded-xl bg-white shadow-sm flex items-center justify-center mb-2"><i class="fas fa-search text-indigo-500 text-xl"></i></div>
+                                <span class="text-xs font-medium text-gray-600">RAG</span>
+                                <span class="text-xs text-gray-400">Cas similaires</span>
+                            </div>
+                            <i class="fas fa-arrow-right text-purple-400"></i>
+                            <div class="flex flex-col items-center text-center">
+                                <div class="w-14 h-14 rounded-xl bg-white shadow-sm flex items-center justify-center mb-2"><i class="fas fa-lightbulb text-amber-500 text-xl"></i></div>
+                                <span class="text-xs font-medium text-gray-600">Diagnostic</span>
+                                <span class="text-xs text-gray-400">Solution</span>
+                            </div>
+                            <i class="fas fa-arrow-right text-purple-400"></i>
+                            <div class="flex flex-col gap-2">
+                                <div class="flex items-center gap-2 p-2 bg-white rounded-xl shadow-sm border border-purple-100">
+                                    <div class="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center"><i class="fas fa-robot text-emerald-600 text-sm"></i></div>
+                                    <span class="text-xs font-medium text-gray-600">Résolution autonome<br>L0-1-2</span>
+                                </div>
+                                <div class="flex items-center gap-2 p-2 bg-white rounded-xl shadow-sm border border-purple-100">
+                                    <div class="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center"><i class="fas fa-user text-indigo-600 text-sm"></i></div>
+                                    <span class="text-xs font-medium text-gray-600">Technicien</span>
+                                </div>
+                            </div>
+
+                        </div>
+                        <p class="text-center text-sm text-gray-600 mt-4"><i class="fas fa-info-circle text-purple-500 mr-1"></i>Un utilisateur ouvre un ticket → L'IA analyse, trouve des solutions similaires et propose un diagnostic en moins de 15 secondes.</p>
+                    </div>
+                </div>
+                <!-- Workflow 3 -->
+                <div>
+                    <h3 class="font-semibold text-lg text-gray-800 mb-4 flex items-center gap-2">
+                        <span class="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center"><span class="text-emerald-600 font-bold">3</span></span>
+                        Cercle Vertueux d'Apprentissage (ENRICHISSEUR)
+                    </h3>
+                    <div class="bg-gradient-to-r from-emerald-50 to-cyan-50 rounded-2xl p-6 border border-emerald-100">
+                        <div class="flex flex-wrap items-center gap-4 justify-center">
+                            <div class="flex flex-col items-center text-center">
+                                <div class="w-14 h-14 rounded-xl bg-white shadow-sm flex items-center justify-center mb-2"><i class="fas fa-check-circle text-emerald-500 text-xl"></i></div>
+                                <span class="text-xs font-medium text-gray-600">Tickets résolus</span>
+                                <span class="text-xs text-gray-400">Journée</span>
+                            </div>
+                            <i class="fas fa-arrow-right text-emerald-400"></i>
+                            <div class="flex flex-col items-center text-center">
+                                <div class="w-14 h-14 rounded-xl bg-white shadow-sm flex items-center justify-center mb-2"><i class="fas fa-graduation-cap text-emerald-500 text-xl"></i></div>
+                                <span class="text-xs font-medium text-gray-600">ENRICHISSEUR</span>
+                                <span class="text-xs text-gray-400">18h00</span>
+                            </div>
+                            <i class="fas fa-arrow-right text-emerald-400"></i>
+                            <div class="flex flex-col items-center text-center">
+                                <div class="w-14 h-14 rounded-xl bg-white shadow-sm flex items-center justify-center mb-2"><i class="fas fa-file-alt text-indigo-500 text-xl"></i></div>
+                                <span class="text-xs font-medium text-gray-600">Procédures</span>
+                                <span class="text-xs text-gray-400">Auto-générées</span>
+                            </div>
+                            <i class="fas fa-arrow-right text-emerald-400"></i>
+                            <div class="flex flex-col items-center text-center">
+                                <div class="w-14 h-14 rounded-xl bg-white shadow-sm flex items-center justify-center mb-2"><i class="fas fa-database text-cyan-500 text-xl"></i></div>
+                                <span class="text-xs font-medium text-gray-600">RAG enrichi</span>
+                                <span class="text-xs text-gray-400">+50/mois</span>
+                            </div>
+                            <i class="fas fa-arrow-right text-emerald-400"></i>
+                            <div class="flex flex-col items-center text-center">
+                                <div class="w-14 h-14 rounded-xl bg-white shadow-sm flex items-center justify-center mb-2"><i class="fas fa-chart-line text-purple-500 text-xl"></i></div>
+                                <span class="text-xs font-medium text-gray-600">Meilleurs résultats</span>
+                                <span class="text-xs text-gray-400">30%→70%</span>
+                            </div>
+                        </div>
+                        <p class="text-center text-sm text-gray-600 mt-4"><i class="fas fa-info-circle text-emerald-500 mr-1"></i>Chaque soir, l'IA apprend des tickets résolus. Plus on l'utilise, plus elle devient performante.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 5: Sécurité -->
+        <section id="securite" class="max-w-6xl mx-auto">
+            <div class="section-card fade-in-up">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-red-400 to-rose-500 flex items-center justify-center">
+                        <i class="fas fa-shield-alt text-white text-2xl"></i>
+                    </div>
+                    <div>
+                        <h2 class="header-title text-2xl font-bold text-gray-900">Sécurité : Le Système SAFEGUARD</h2>
+                        <p class="text-gray-500">L'IA sous contrôle humain</p>
+                    </div>
+                </div>
+                <div class="bg-gradient-to-r from-red-50 to-orange-50 rounded-2xl p-6 border border-red-100 mb-8">
+                    <div class="flex items-start gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-gray-900 mb-2">Principe fondamental</h4>
+                            <p class="text-gray-700">Les verrous de sécurité sont <strong>codés en dur dans le système</strong>, pas délégués à l'IA. Cela signifie que l'IA <strong>ne peut physiquement pas</strong> contourner les restrictions, même en cas de tentative de manipulation.</p>
+                        </div>
+                    </div>
+                </div>
+                <h3 class="font-semibold text-lg text-gray-800 mb-4">Les 5 niveaux de sécurité</h3>
+                <div class="space-y-4">
+                    <div class="flex items-center gap-4 p-4 bg-emerald-50 rounded-xl border border-emerald-100">
+                        <div class="w-14 h-14 rounded-xl bg-emerald-500 flex items-center justify-center flex-shrink-0"><span class="text-white font-bold text-lg">L0</span></div>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <h4 class="font-semibold text-gray-900">Lecture seule</h4>
+                                <span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded text-xs font-medium">AUTOMATIQUE ✓</span>
+                            </div>
+                            <p class="text-gray-600 text-sm">Consultation des tickets, recherche dans la base de connaissances, lecture des informations client.</p>
+                        </div>
+                        <span class="text-emerald-600 font-medium text-sm">Aucun risque</span>
+                    </div>
+                    <div class="flex items-center gap-4 p-4 bg-blue-50 rounded-xl border border-blue-100">
+                        <div class="w-14 h-14 rounded-xl bg-blue-500 flex items-center justify-center flex-shrink-0"><span class="text-white font-bold text-lg">L1</span></div>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <h4 class="font-semibold text-gray-900">Actions mineures</h4>
+                                <span class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">AUTO si confiance ≥80%</span>
+                            </div>
+                            <p class="text-gray-600 text-sm">Création de ticket, ajout de commentaire, envoi de notification email.</p>
+                        </div>
+                        <span class="text-blue-600 font-medium text-sm">Risque faible</span>
+                    </div>
+                    <div class="flex items-center gap-4 p-4 bg-amber-50 rounded-xl border border-amber-100">
+                        <div class="w-14 h-14 rounded-xl bg-amber-500 flex items-center justify-center flex-shrink-0"><span class="text-white font-bold text-lg">L2</span></div>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <h4 class="font-semibold text-gray-900">Actions modérées</h4>
+                                <span class="px-2 py-0.5 bg-amber-100 text-amber-700 rounded text-xs font-medium">AUTO + NOTIFICATION ⚡</span>
+                            </div>
+                            <p class="text-gray-600 text-sm">Changement de statut d'un ticket, déverrouillage de compte utilisateur.</p>
+                        </div>
+                        <span class="text-amber-600 font-medium text-sm">Risque modéré</span>
+                    </div>
+                    <div class="flex items-center gap-4 p-4 bg-orange-50 rounded-xl border border-orange-100">
+                        <div class="w-14 h-14 rounded-xl bg-orange-500 flex items-center justify-center flex-shrink-0"><span class="text-white font-bold text-lg">L3</span></div>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <h4 class="font-semibold text-gray-900">Actions sensibles</h4>
+                                <span class="px-2 py-0.5 bg-orange-100 text-orange-700 rounded text-xs font-medium">VALIDATION HUMAINE 🔒</span>
+                            </div>
+                            <p class="text-gray-600 text-sm">Reset de mot de passe, désactivation de compte, clôture de ticket sans résolution.</p>
+                        </div>
+                        <span class="text-orange-600 font-medium text-sm">Risque élevé</span>
+                    </div>
+                    <div class="flex items-center gap-4 p-4 bg-red-50 rounded-xl border border-red-100">
+                        <div class="w-14 h-14 rounded-xl bg-red-600 flex items-center justify-center flex-shrink-0"><span class="text-white font-bold text-lg">L4</span></div>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <h4 class="font-semibold text-gray-900">Actions interdites</h4>
+                                <span class="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs font-medium">INTERDIT 🛑</span>
+                            </div>
+                            <p class="text-gray-600 text-sm">Création de compte Active Directory, modification des groupes de sécurité, accès aux données de santé.</p>
+                        </div>
+                        <span class="text-red-600 font-medium text-sm">Jamais exécuté</span>
+                    </div>
+                </div>
+                <div class="mt-8 p-6 bg-gray-50 rounded-2xl border border-gray-200">
+                    <div class="flex items-center gap-3 mb-4">
+                        <i class="fas fa-desktop text-indigo-600 text-xl"></i>
+                        <h4 class="font-semibold text-gray-900">Dashboard de validation</h4>
+                    </div>
+                    <p class="text-gray-600 text-sm mb-4">Un tableau de bord permet aux techniciens de voir les actions en attente de validation (L3), de les approuver ou rejeter, et de consulter l'historique complet des actions IA.</p>
+                    <div class="flex flex-wrap gap-3">
+                        <span class="px-3 py-1.5 bg-white rounded-lg text-sm text-gray-600 border border-gray-200"><i class="fas fa-clock text-amber-500 mr-1"></i> Actions en attente</span>
+                        <span class="px-3 py-1.5 bg-white rounded-lg text-sm text-gray-600 border border-gray-200"><i class="fas fa-check text-emerald-500 mr-1"></i> Approuver / Rejeter</span>
+                        <span class="px-3 py-1.5 bg-white rounded-lg text-sm text-gray-600 border border-gray-200"><i class="fas fa-history text-indigo-500 mr-1"></i> Journal d'audit</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 6: Coûts -->
+        <section id="couts" class="max-w-6xl mx-auto">
+            <div class="section-card fade-in-up">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center">
+                        <i class="fas fa-coins text-white text-2xl"></i>
+                    </div>
+                    <div>
+                        <h2 class="header-title text-2xl font-bold text-gray-900">Coûts & Infrastructure</h2>
+                        <p class="text-gray-500">Un investissement maîtrisé</p>
+                    </div>
+                </div>
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="font-semibold text-lg text-gray-800 mb-4 flex items-center gap-2"><i class="fas fa-calendar-alt text-emerald-500"></i>Coûts mensuels estimés</h3>
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-100">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center"><i class="fas fa-brain text-indigo-600"></i></div>
+                                    <div><p class="font-medium text-gray-800">API Mistral (LLM)</p><p class="text-xs text-gray-500">Intelligence artificielle</p></div>
+                                </div>
+                                <span class="font-bold text-gray-900">~20-50€</span>
+                            </div>
+                            <div class="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-100">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-lg bg-cyan-100 flex items-center justify-center"><i class="fas fa-server text-cyan-600"></i></div>
+                                    <div><p class="font-medium text-gray-800">Infrastructure</p><p class="text-xs text-gray-500">Serveurs existants</p></div>
+                                </div>
+                                <span class="font-bold text-emerald-600">0€*</span>
+                            </div>
+                            <div class="flex items-center justify-between p-4 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl border border-emerald-200">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-lg bg-emerald-500 flex items-center justify-center"><i class="fas fa-equals text-white"></i></div>
+                                    <div><p class="font-bold text-gray-900">TOTAL</p><p class="text-xs text-gray-500">Coût mensuel</p></div>
+                                </div>
+                                <span class="text-2xl font-bold text-emerald-600">20-50€</span>
+                            </div>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-3">* Utilise l'infrastructure existante de WIDIP</p>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-lg text-gray-800 mb-4 flex items-center gap-2"><i class="fas fa-layer-group text-indigo-500"></i>Architecture simplifiée</h3>
+                        <div class="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-6 border border-indigo-100">
+                            <div class="space-y-4">
+                                <div class="flex items-center gap-3 p-3 bg-white rounded-xl">
+                                    <div class="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center"><i class="fas fa-cloud text-purple-600 text-sm"></i></div>
+                                    <div class="flex-1"><p class="font-medium text-gray-800 text-sm">API Mistral</p><p class="text-xs text-gray-500">IA certifiée HDS (externe)</p></div>
+                                    <span class="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs">Cloud EU</span>
+                                </div>
+                                <div class="flex items-center gap-3 p-3 bg-white rounded-xl">
+                                    <div class="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center"><i class="fas fa-cogs text-indigo-600 text-sm"></i></div>
+                                    <div class="flex-1"><p class="font-medium text-gray-800 text-sm">MCP Server + n8n</p><p class="text-xs text-gray-500">Orchestration & outils</p></div>
+                                    <span class="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs">On-premise</span>
+                                </div>
+                                <div class="flex items-center gap-3 p-3 bg-white rounded-xl">
+                                    <div class="w-8 h-8 rounded-lg bg-cyan-100 flex items-center justify-center"><i class="fas fa-database text-cyan-600 text-sm"></i></div>
+                                    <div class="flex-1"><p class="font-medium text-gray-800 text-sm">PostgreSQL + Redis</p><p class="text-xs text-gray-500">Base de connaissances</p></div>
+                                    <span class="px-2 py-1 bg-cyan-100 text-cyan-700 rounded text-xs">On-premise</span>
+                                </div>
+                                <div class="flex items-center gap-3 p-3 bg-white rounded-xl">
+                                    <div class="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center"><i class="fas fa-plug text-emerald-600 text-sm"></i></div>
+                                    <div class="flex-1"><p class="font-medium text-gray-800 text-sm">GLPI, Observium, AD</p><p class="text-xs text-gray-500">Systèmes connectés</p></div>
+                                    <span class="px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-xs">Existants</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-100">
+                            <p class="text-sm text-blue-800"><i class="fas fa-info-circle mr-1"></i><strong>Données souveraines :</strong> Toutes les données clients restent en France sur nos serveurs. Seules les requêtes anonymisées sont envoyées à l'API Mistral.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 7: Roadmap -->
+        <section id="roadmap" class="max-w-6xl mx-auto">
+            <div class="section-card fade-in-up">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-400 to-violet-500 flex items-center justify-center">
+                        <i class="fas fa-road text-white text-2xl"></i>
+                    </div>
+                    <div>
+                        <h2 class="header-title text-2xl font-bold text-gray-900">Roadmap & Évolutions</h2>
+                        <p class="text-gray-500">Les prochaines étapes</p>
+                    </div>
+                </div>
+                <div class="relative">
+                    <div class="absolute left-8 top-0 bottom-0 w-0.5 bg-gradient-to-b from-indigo-500 via-purple-500 to-pink-500 hidden md:block"></div>
+                    <div class="space-y-8">
+                        <div class="relative flex gap-6">
+                            <div class="w-16 h-16 rounded-2xl bg-indigo-500 flex items-center justify-center flex-shrink-0 z-10"><span class="text-white font-bold text-sm">Q1<br>2026</span></div>
+                            <div class="flex-1 bg-indigo-50 rounded-2xl p-6 border border-indigo-100">
+                                <h4 class="font-bold text-gray-900 mb-3">Court terme</h4>
+                                <div class="grid md:grid-cols-3 gap-4">
+                                    <div class="p-3 bg-white rounded-xl"><p class="font-medium text-gray-800 text-sm">Dashboard complet</p><p class="text-xs text-gray-500 mt-1">Monitoring temps réel</p></div>
+                                    <div class="p-3 bg-white rounded-xl"><p class="font-medium text-gray-800 text-sm">Cache Redis RAG</p><p class="text-xs text-gray-500 mt-1">Performances améliorées</p></div>
+                                    <div class="p-3 bg-white rounded-xl"><p class="font-medium text-gray-800 text-sm">Tests automatisés</p><p class="text-xs text-gray-500 mt-1">Qualité garantie</p></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="relative flex gap-6">
+                            <div class="w-16 h-16 rounded-2xl bg-purple-500 flex items-center justify-center flex-shrink-0 z-10"><span class="text-white font-bold text-sm">Q2<br>2026</span></div>
+                            <div class="flex-1 bg-purple-50 rounded-2xl p-6 border border-purple-100">
+                                <h4 class="font-bold text-gray-900 mb-3">Moyen terme</h4>
+                                <div class="grid md:grid-cols-3 gap-4">
+                                    <div class="p-3 bg-white rounded-xl"><p class="font-medium text-gray-800 text-sm">Recherche hybride</p><p class="text-xs text-gray-500 mt-1">RAG plus précis</p></div>
+                                    <div class="p-3 bg-white rounded-xl"><p class="font-medium text-gray-800 text-sm">ENRICHISSEUR auto</p><p class="text-xs text-gray-500 mt-1">Apprentissage continu</p></div>
+                                    <div class="p-3 bg-white rounded-xl"><p class="font-medium text-gray-800 text-sm">Intégration Teams</p><p class="text-xs text-gray-500 mt-1">WIBOT sur Teams/Slack</p></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="relative flex gap-6">
+                            <div class="w-16 h-16 rounded-2xl bg-pink-500 flex items-center justify-center flex-shrink-0 z-10"><span class="text-white font-bold text-sm">S2<br>2026</span></div>
+                            <div class="flex-1 bg-pink-50 rounded-2xl p-6 border border-pink-100">
+                                <h4 class="font-bold text-gray-900 mb-3">Long terme</h4>
+                                <div class="grid md:grid-cols-3 gap-4">
+                                    <div class="p-3 bg-white rounded-xl border-2 border-emerald-200"><p class="font-medium text-emerald-700 text-sm">🎯 Objectif 70%</p><p class="text-xs text-gray-500 mt-1">Évaluation autonomie</p></div>
+                                    <div class="p-3 bg-white rounded-xl"><p class="font-medium text-gray-800 text-sm">Fine-tuning modèle</p><p class="text-xs text-gray-500 mt-1">IA personnalisée</p></div>
+                                    <div class="p-3 bg-white rounded-xl"><p class="font-medium text-gray-800 text-sm">Multi-tenant</p><p class="text-xs text-gray-500 mt-1">Plusieurs clients</p></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="relative flex gap-6">
+                            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-gray-400 to-gray-500 flex items-center justify-center flex-shrink-0 z-10"><i class="fas fa-rocket text-white text-xl"></i></div>
+                            <div class="flex-1 bg-gray-50 rounded-2xl p-6 border border-gray-200">
+                                <h4 class="font-bold text-gray-900 mb-3">Évolutions envisagées</h4>
+                                <div class="flex flex-wrap gap-3">
+                                    <span class="px-4 py-2 bg-white rounded-full text-sm text-gray-600 border border-gray-200"><i class="fas fa-phone text-indigo-500 mr-1"></i> Assistant vocal</span>
+                                    <span class="px-4 py-2 bg-white rounded-full text-sm text-gray-600 border border-gray-200"><i class="fas fa-chart-bar text-purple-500 mr-1"></i> Prédiction pannes</span>
+                                    <span class="px-4 py-2 bg-white rounded-full text-sm text-gray-600 border border-gray-200"><i class="fas fa-magic text-pink-500 mr-1"></i> Auto-correction</span>
+                                    <span class="px-4 py-2 bg-white rounded-full text-sm text-gray-600 border border-gray-200"><i class="fas fa-project-diagram text-cyan-500 mr-1"></i> Graph connaissances</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <section class="max-w-6xl mx-auto">
+            <div class="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 rounded-3xl p-8 text-white">
+                <div class="text-center mb-8">
+                    <h2 class="header-title text-3xl font-bold mb-2">En résumé</h2>
+                    <p class="text-white/80">WIDIP IA en quelques points clés</p>
+                </div>
+                <div class="grid md:grid-cols-4 gap-6">
+                    <div class="text-center p-4 bg-white/10 rounded-2xl backdrop-blur-sm">
+                        <div class="w-14 h-14 mx-auto mb-3 rounded-2xl bg-white/20 flex items-center justify-center"><i class="fas fa-robot text-2xl"></i></div>
+                        <p class="font-bold text-lg">5 Agents IA</p>
+                        <p class="text-sm text-white/70">Spécialisés et coordonnés</p>
+                    </div>
+                    <div class="text-center p-4 bg-white/10 rounded-2xl backdrop-blur-sm">
+                        <div class="w-14 h-14 mx-auto mb-3 rounded-2xl bg-white/20 flex items-center justify-center"><i class="fas fa-shield-alt text-2xl"></i></div>
+                        <p class="font-bold text-lg">Sécurité L0-L4</p>
+                        <p class="text-sm text-white/70">Contrôle humain garanti</p>
+                    </div>
+                    <div class="text-center p-4 bg-white/10 rounded-2xl backdrop-blur-sm">
+                        <div class="w-14 h-14 mx-auto mb-3 rounded-2xl bg-white/20 flex items-center justify-center"><i class="fas fa-euro-sign text-2xl"></i></div>
+                        <p class="font-bold text-lg">&lt;20€/mois</p>
+                        <p class="text-sm text-white/70">Coût maîtrisé</p>
+                    </div>
+                    <div class="text-center p-4 bg-white/10 rounded-2xl backdrop-blur-sm">
+                        <div class="w-14 h-14 mx-auto mb-3 rounded-2xl bg-white/20 flex items-center justify-center"><i class="fas fa-certificate text-2xl"></i></div>
+                        <p class="font-bold text-lg">HDS + ISO 27001</p>
+                        <p class="text-sm text-white/70">Conformité santé</p>
+                    </div>
+                </div>
+                <div class="mt-8 text-center">
+                    <p class="text-white/60 text-sm">Document WIDIP Architecture IA v14 • Décembre 2025 • Usage interne</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal -->
+    <div id="agent-modal" class="fixed inset-0 z-50 hidden">
+        <div class="modal-backdrop absolute inset-0" onclick="closeAgentModal()"></div>
+        <div class="modal-content absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl p-8 shadow-2xl">
+            <button onclick="closeAgentModal()" class="absolute top-4 right-4 w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-all"><i class="fas fa-times text-gray-500"></i></button>
+            <div id="modal-content"></div>
+        </div>
+    </div>
+
+    <script>
+        const agentData = {
+            sentinel: { name: "SENTINEL", subtitle: "Surveillance Proactive 24/7", icon: "fa-satellite-dish", color: "amber", description: "SENTINEL est l'agent de surveillance qui monitore en permanence l'infrastructure réseau via Observium. Dès qu'une alerte est détectée (équipement hors ligne, latence élevée, perte de paquets), il analyse automatiquement la situation.", triggers: ["Équipement hors ligne (device down)", "Latence réseau > 100ms", "Perte de paquets > 5%"], actions: ["Diagnostic automatique de la panne", "Création de ticket urgence dans GLPI", "Notification de l'équipe d'astreinte"], tools: ["observium_get_device_status", "glpi_create_ticket", "memory_search_similar_cases"], security: "L0-L1 (lecture + création tickets)" },
+            support: { name: "SUPPORT", subtitle: "Assistant Tickets Intelligent", icon: "fa-headset", color: "purple", description: "SUPPORT est l'agent principal de traitement des tickets. Il gère la résolution autonome si autorisé par le Safeguard et demande l'intervention d'un technicien pour les actions sensibles.", triggers: ["Nouveau ticket"], actions: ["Demande à un Humain pour les actions importantes", "Résolution autonome si autorisé par le Safeguard"], tools: ["glpi_get_ticket_details", "memory_search_similar_cases", "glpi_add_ticket_followup"], security: "L0-L2 (lecture + followups + assignation)" },
+            enrichisseur: { name: "ENRICHISSEUR", subtitle: "Amélioration Continue Automatique", icon: "fa-graduation-cap", color: "emerald", description: "ENRICHISSEUR est l'agent d'apprentissage. Chaque soir à 18h, il analyse les tickets résolus de la journée, extrait les patterns de résolution, et crée automatiquement de nouvelles procédures pour enrichir la base de connaissances.", triggers: ["Cron quotidien à 18h00", "Tickets résolus de la veille"], actions: ["Analyse des tickets résolus", "Extraction des patterns de résolution", "Création de nouvelles procédures"], tools: ["glpi_search_new_tickets", "memory_add_knowledge"], security: "L1 (écriture RAG uniquement)" },
+            safeguard: { name: "SAFEGUARD", subtitle: "Verrou de Sécurité Intégré", icon: "fa-shield-alt", color: "red", description: "SAFEGUARD n'est pas un agent à proprement parler, mais un système de sécurité intégré au cœur du MCP Server. Il vérifie CHAQUE action demandée par les autres agents et applique les règles de sécurité L0-L4.", triggers: ["Chaque appel d'outil MCP", "Vérification automatique avant exécution"], actions: ["L0 : Autorise (lecture)", "L1 : Autorise si confiance ≥80%", "L2 : Autorise + notification", "L3 : Bloque → validation humaine", "L4 : Interdit systématiquement"], tools: ["Intégré au MCP Server", "Dashboard de validation", "Journal d'audit complet"], security: "Codé en dur (non contournable)" },
+            wibot: { name: "WIBOT", subtitle: "Assistant Conversationnel Technicien", icon: "fa-comments", color: "cyan", description: "WIBOT est l'interface conversationnelle pour les 15 techniciens support. Via chat (web ou Teams/Slack), ils peuvent poser des questions, chercher de la documentation, ou obtenir des suggestions de diagnostic.", triggers: ["Question d'un technicien", "Demande de documentation", "Recherche de procédure"], actions: ["Recherche dans la base de connaissances", "Consultation de l'historique GLPI", "Suggestions de diagnostic"], tools: ["memory_search_similar_cases", "glpi_get_ticket_details", "glpi_search_client"], security: "L0 uniquement (lecture seule)" }
+        };
+        const colorClasses = { amber: { bg: 'bg-amber-100', text: 'text-amber-600', border: 'border-amber-200', light: 'bg-amber-50' }, purple: { bg: 'bg-purple-100', text: 'text-purple-600', border: 'border-purple-200', light: 'bg-purple-50' }, emerald: { bg: 'bg-emerald-100', text: 'text-emerald-600', border: 'border-emerald-200', light: 'bg-emerald-50' }, red: { bg: 'bg-red-100', text: 'text-red-600', border: 'border-red-200', light: 'bg-red-50' }, cyan: { bg: 'bg-cyan-100', text: 'text-cyan-600', border: 'border-cyan-200', light: 'bg-cyan-50' } };
+        function openAgentModal(agentId) {
+            const agent = agentData[agentId];
+            const c = colorClasses[agent.color];
+            document.getElementById('modal-content').innerHTML = `
+                <div class="flex items-start gap-4 mb-6">
+                    <div class="w-16 h-16 rounded-2xl ${c.bg} flex items-center justify-center"><i class="fas ${agent.icon} ${c.text} text-3xl"></i></div>
+                    <div><h2 class="text-2xl font-bold text-gray-900">${agent.name}</h2><p class="${c.text} font-medium">${agent.subtitle}</p></div>
+                </div>
+                <div class="${c.light} rounded-xl p-4 mb-6 border ${c.border}"><p class="text-gray-700">${agent.description}</p></div>
+                <div class="grid md:grid-cols-2 gap-6 mb-6">
+                    <div><h4 class="font-semibold text-gray-800 mb-3 flex items-center gap-2"><i class="fas fa-bolt ${c.text}"></i> Déclencheurs</h4><ul class="space-y-2">${agent.triggers.map(t => `<li class="text-sm text-gray-600 flex items-start gap-2"><span class="w-1.5 h-1.5 rounded-full ${c.bg} mt-2"></span>${t}</li>`).join('')}</ul></div>
+                    <div><h4 class="font-semibold text-gray-800 mb-3 flex items-center gap-2"><i class="fas fa-cogs ${c.text}"></i> Actions</h4><ul class="space-y-2">${agent.actions.map(a => `<li class="text-sm text-gray-600 flex items-start gap-2"><span class="w-1.5 h-1.5 rounded-full ${c.bg} mt-2"></span>${a}</li>`).join('')}</ul></div>
+                </div>
+                <div class="border-t border-gray-100 pt-4">
+                    <div class="flex flex-wrap items-center justify-between gap-4">
+                        <div><span class="text-xs font-medium text-gray-500 uppercase">Niveau sécurité</span><p class="font-semibold text-gray-800">${agent.security}</p></div>
+                        <div class="flex flex-wrap gap-2">${agent.tools.map(t => `<span class="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs font-mono">${t}</span>`).join('')}</div>
+                    </div>
+                </div>`;
+            document.getElementById('agent-modal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+        function closeAgentModal() { document.getElementById('agent-modal').classList.add('hidden'); document.body.style.overflow = 'auto'; }
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAgentModal(); });
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => { anchor.addEventListener('click', function(e) { e.preventDefault(); document.querySelector(this.getAttribute('href'))?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }); });
+    </script>
+</body>
+</html>
